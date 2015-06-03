@@ -5,11 +5,11 @@ import slick.ast.TypeUtil.:@
 import slick.ast._
 
 import slick.dbio.{Streaming, SynchronousDatabaseAction, Effect, NoStream}
+import slick.jdbc.JdbcBackend
 
 import slick.mongodb.MongoInvoker
 import slick.mongodb.direct.{TypedMongoCursor, MongoBackend}
-import slick.profile.{FixedBasicAction, FixedBasicStreamingAction, RelationalActionComponent}
-import slick.relational.CompiledMapping
+import slick.profile.{FixedSqlAction, FixedBasicAction, FixedBasicStreamingAction, RelationalActionComponent}
 
 import slick.util._
 
@@ -34,14 +34,12 @@ trait MongoActionComponent extends RelationalActionComponent {
 
   class QueryActionExtensionMethodsImpl[R, S <: NoStream](tree: Node, param: Any) extends super.QueryActionExtensionMethodsImpl[R, S] {
     def result: DriverAction[R, S, Effect.Read] = {
-      //I should think about what that method does findSql
       (tree match {
         /* todo how to deal with pattern matching
         in JDBC implementation I found line  (rsm @ ResultSetMapping(_, compiled, CompiledMapping(_, elemType))) :@ (ct: CollectionType)
         for Streaming and First(rsm @ ResultSetMapping(_, compiled, _)) for simple action
          */
-        case (tree) :@ (ct: CollectionType) =>
-
+        case (rsm @ ResultSetMapping(_, compiled, _)) :@ (ct: CollectionType) =>
       new MongoStreamingInvokerAction[R, Any, Effect] {
             streamingAction =>
             def run(ctx: MongoBackend#Context): R = {
@@ -50,9 +48,9 @@ trait MongoActionComponent extends RelationalActionComponent {
               invoker.foreach(x => b += x)(ctx.session)
               b.result()
             }
-        override def createInvoker(session: MongoBackend#Session) = LiftedMongoInvoker[R](tree)(session)
+        override def createInvoker(session: MongoBackend#Session) = LiftedMongoInvoker[R](rsm)(session)
       }
-        case First(rsm@ResultSetMapping(_, compiled, _)) => //todo pattern matching I dont understand for now
+        case First(rsm @ ResultSetMapping(_, compiled, _)) =>
           new SimpleDriverAction[R]("result") {
             def run(ctx: Backend#Context): R = {
               val liftedMongoInvoker = new LiftedMongoInvoker[R](rsm, ctx.session)
@@ -114,10 +112,10 @@ trait MongoActionComponent extends RelationalActionComponent {
 
     type StreamState = CloseableIterator[R]
 
-    // todo passing session two time deal with that
-    override final def emitStream(ctx: MongoBackend#StreamingContext, limit: Long, state: StreamState): StreamState = {
-      def iterator: TypedMongoCursor[R] = createInvoker(ctx.session).iterator(ctx.session) //new LiftedMongoInvoker[R](tree,ctx.session).iterator(ctx.session)
 
+    override final def emitStream(ctx: MongoBackend#StreamingContext, limit: Long, state: StreamState): StreamState = {
+      // todo passing session two times
+      def iterator: TypedMongoCursor[R] = createInvoker(ctx.session).iterator(ctx.session)
       val it = if (state ne null) state else iterator
       var count = 0L
       try {
@@ -137,16 +135,29 @@ trait MongoActionComponent extends RelationalActionComponent {
 
     /** Create an Action that returns only the first value of this stream of data as an `Option`.
       * Only available on streaming Actions. */
-    def headOption = ???
+    def headOption =  ???  //new HeadOptionAction()
 
     /** Create an Action that returns only the first value of this stream of data. The Action will
       * fail if the stream is empty. Only available on streaming Actions. */
-    def head = ???
+    def head = ??? //new HeadAction()
 
     /** Return the name, main info, attribute info and named children */
     def getDumpInfo = ???
 
+
+//    private[this] class HeadAction extends SynchronousDatabaseAction[T, NoStream, MongoBackend, E] with FixedBasicAction[R, T, E] {
+//      def run(ctx: MongoBackend#Context): R = createInvoker(ctx.session).first(ctx.session)
+//      def getDumpInfo = ???
+//    }
+//
+//    private[this] class HeadOptionAction extends SynchronousDatabaseAction[Option[T], NoStream, MongoBackend, E] with FixedBasicAction[R, T, E] {
+//      def run(ctx: MongoBackend#Context): Option[R] = createInvoker(ctx.session).firstOption(ctx.session)
+//      def getDumpInfo = ???
+//    }
+
   }
+
+
 
   abstract class SimpleDriverAction[+R](name: String) extends SynchronousDatabaseAction[R, NoStream, Backend, Effect] with DriverAction[R, NoStream, Effect] {
     type StreamState = this.type

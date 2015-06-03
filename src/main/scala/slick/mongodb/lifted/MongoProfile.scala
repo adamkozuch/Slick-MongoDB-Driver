@@ -8,6 +8,7 @@ import slick.dbio.Effect.Schema
 import slick.dbio.{Streaming, SynchronousDatabaseAction, Effect, NoStream}
 import slick.jdbc.StreamingInvokerAction
 import slick.memory.DistributedBackend
+import slick.mongodb.types.DocumentComponent
 import slick.relational.CompiledMapping
 import slick.util.{SQLBuilder, DumpInfo}
 
@@ -20,7 +21,7 @@ import slick.mongodb.direct.{GetResult, MongoQuery, MongoBackend}
 import slick.profile.{FixedBasicStreamingAction, FixedBasicAction, RelationalDriver, RelationalProfile}
 
 // TODO: split into traits?
-trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent with MongoTypesComponent with MongoActionComponent{ driver: MongoDriver =>
+trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent with MongoTypesComponent with MongoActionComponent with DocumentComponent{ driver: MongoDriver =>
 
   type Backend = MongoBackend
   val backend = MongoBackend
@@ -33,8 +34,13 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
 //  trait Implicits extends super.Implicits with CommonImplicits
 //  trait SimpleQL extends super.SimpleQL with Implicits
   trait API extends super.API with CommonImplicits
+{
+  type Document[T] = driver.Document[T]
+}
 
   trait SimpleQL extends super.SimpleQL with Implicits
+
+
 
 
   // TODO: extend for complicated node structure, probably mongodb nodes should be used

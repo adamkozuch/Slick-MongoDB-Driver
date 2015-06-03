@@ -12,12 +12,12 @@ trait GenericLiftedMongoInvoker[T]  {
   protected def queryNode: Node
 
   /** Used to retrieve attribute names from the query node */
-  protected def attributeNames: Seq[String] = attributes//.map(_._1)  //without type
+  protected def attributeNames: Seq[String] = attributes.map(_._1)  //without type
 
   /** Used to retrieve attribute names and their types from the query node*/
-  protected def attributes: Seq[(String)] = queryNode match {  // todo for now result without a type
-    case TableExpansion(_,_,pn: ProductNode) => pn.nodeChildren.map(_.asInstanceOf[Select].field.name) //zip pn.buildType.children  // todo build type is now protected resolve problem
-    case ResultSetMapping(_,Comprehension(_,_,_,_,Some(Pure(pn:ProductNode,_)),_,_),_) => pn.nodeChildren.map(_.asInstanceOf[Select].field.name) //zip pn.buildType.children
+  protected def attributes: Seq[(String,Type)] = queryNode match {  // todo for now result without a type
+    case TableExpansion(_,_,pn: ProductNode) => pn.nodeChildren.map(_.asInstanceOf[Select].field.name)  zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children  // todo build type is now protected resolve problem
+    case ResultSetMapping(_,Comprehension(_,_,_,_,Some(Pure(pn:ProductNode,_)),_,_),_) => pn.nodeChildren.map(_.asInstanceOf[Select].field.name) zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children
   }
 
   /** Used to convert data from DBObject to specified type after find operation - required for TypedMongoCollection creation */
