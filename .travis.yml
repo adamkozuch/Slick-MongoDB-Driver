@@ -1,5 +1,5 @@
 language: scala
-script: sbt -jvm-opts jvmopts.travis -D
+script: sbt -jvm-opts jvmopts.travis -D test
 jdk:
   - openjdk6
 notifications:
