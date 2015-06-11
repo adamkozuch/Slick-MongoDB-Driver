@@ -21,13 +21,15 @@ import slick.mongodb.direct.{GetResult, MongoQuery, MongoBackend}
 import slick.profile.{FixedBasicStreamingAction, FixedBasicAction, RelationalDriver, RelationalProfile}
 
 // TODO: split into traits?
-trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent with MongoTypesComponent with MongoActionComponent with DocumentComponent{ driver: MongoDriver =>
+trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent with MongoTypesComponent with MongoActionComponent with DocumentComponent with RelationalDriver
+{ driver: MongoDriver =>
 
   type Backend = MongoBackend
   val backend = MongoBackend
   override val Implicit: Implicits = simple
   override val simple: SimpleQL  = new SimpleQL {}
   override val api = new API{}
+ override val profile =this
 
 
   protected trait CommonImplicits extends super.CommonImplicits with ImplicitColumnTypes
@@ -92,6 +94,6 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
 }
 
 // TODO: make it a class?
-trait MongoDriver extends MongoProfile with RelationalDriver
+trait MongoDriver extends MongoProfile
 
 object MongoDriver extends MongoDriver
