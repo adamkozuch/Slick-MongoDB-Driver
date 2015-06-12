@@ -1,9 +1,13 @@
 package slick.mongodb.types
 
 import slick.ast._
+import slick.collection.heterogeneous.{TypedFunction2, HList}
 import slick.lifted._
 import slick.mongodb.lifted.MongoDriver
 import slick.profile.{RelationalDriver, RelationalTableComponent}
+
+import scala.reflect.ClassTag
+import scala.tools.nsc.backend.ScalaPrimitives
 
 
 /**
@@ -12,51 +16,49 @@ import slick.profile.{RelationalDriver, RelationalTableComponent}
 trait DocumentComponent extends RelationalTableComponent {
   driver: MongoDriver =>
 
-  // lazy val documentNode = DocumentNode(schemaName, tableName, tableIdentitySymbol, this, tableIdentitySymbol)
+  abstract class Document[A](_tableTag: Tag, _tableName: String) // T to jest właściwie cała wartośc wyrażeniua
+    extends Table[A](_tableTag, _tableName) {
 
-  // when we have array we just check if its elements are of the same type
-
-    abstract class Document[A](_tableTag: Tag, _tableName: String)  // T to jest właściwie cała wartośc wyrażeniua
-      extends Table[A](_tableTag,_tableName)
-    {
-       type G <: Seq[Object]
-    override  def tableProvider: RelationalDriver = driver
-
-     override def tableIdentitySymbol: TableIdentitySymbol = SimpleTableIdentitySymbol(driver, schemaName.getOrElse("_"), tableName)
-
-     override val O: driver.columnOptions.type = columnOptions
-
-      type E <: AnyRef
-      type B <: AnyVal
-
-
-    //  implicitly[Shape[_, Rep[Option[(Rep[Int], Rep[String])]], _, _]]
-
-//      def document[C](key: String)(implicit tt:TypedType[C]):Rep[Option[C]] = tt match  // method should return nested lists ex. List(Rep,List(Rep,Rep))
-//      {
-//      //  case a:B => Rep.Some[Rep[C],Rep[Option[C]]](column[C](key))//opcja jest typem any
-//        case a:B =>Rep.Some[Rep[C],Rep[Option[C]]](column[C](key))(OptionLift.repOptionLift[Rep[C],C])
-//       // case a:List => Rep.Some[Rep[C],Rep[Option[C]]](a.map(x => Rep.Some[Rep[C],Rep[Option[C]]]))
-//
-//
-//
-//      }
-
-       // we can have multiple columns in one list probably I should use map or foreach
-      }
-
-
-
-  //    when we define schema we use columns or DocumentObject
+    def matchType[T](a: String): Rep[T] = implicitly[ClassTag[T]] match {
+      case Document => Document[T](a)
+      case ScalaBaseType => column[T](a)
     }
+  }
 
-  //może zaniast sekwencji dokumentów  powinna byc sekwencja List[Any]
-  //abstract case class DSeq[T](elems:List[Any])(_tableTag: Tag, collectionName: String) extends  Document(_tableTag: Tag, collectionName: String)
-  //lists later
-  //  abstract case class DocumentObj(_tableTag: Tag, collectionName: String) //probably I dont need schema
-  ////                                 (bindings: Map[String,V]) extends Document(_tableTag: Tag, collectionName: String) // czym są te bindingi
-  //  abstract case class DocumentRep(r:String)(_tableTag: Tag, collectionName: String)
-  //    extends Document(_tableTag: Tag, collectionName: String)
+
+  object Document {
+    def apply[A](a: String)(implicit _documentTag: Tag, _documentName: String) = new Document[A](_documentTag, _documentName) {
+      def cA = matchType[A](a) //type A can be mix of documents and multiple primitive types but how then match a projection
+      * = cA //maybe we should make Shape that takes multiple type parameters ProvenShape[A], ProvenShape[A,B], ProvenShape[A,B,C], ProvenShape[A,B,C,D] etc
+    } //I should not creating an object but defining
+
+    //    def apply[A,B](a:String,b:String)(implicit _tableTag: Tag, _tableName: String)=new Document[A,B](_tableTag,_tableName) {
+    //      def cA = matchType[A](a)
+    //      def cB = matchType[B](b)
+    //      def * = (cA,cB)  //maybe provide set of abstract case classes
+    //    }
+
+  }
+
+  /*
+  What I wanna achieve
+    class Suppliers(tag: Tag)
+      extends Document[Int,  Document[String, Document[String,Int]], String, ](tag, "SUPPLIERS") { //it doesn't take one type parameter but couple
+
+      // This is the primary key column:
+      def id: Rep[Int] = column[Int]("SUP_ID", O.PrimaryKey)
+      def additionalData:Rep[Option[Rep[String], Rep[Option[Rep[String],Rep[Int]] =
+      Document("data", (surname:String, Document("competitors",(compName:String,rank:Int ))))     // we use here companion object
+      def city: Rep[String] = column[String]("CITY")
+
+
+      //compiler should demand (Int,Option[(String,Option[(String,Int)])],String)
+      def *  = (id, additionalData ,city)
+    }
+   */
+
+}
+
 
 
 
