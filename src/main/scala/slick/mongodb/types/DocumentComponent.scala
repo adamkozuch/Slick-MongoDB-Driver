@@ -7,7 +7,6 @@ import slick.mongodb.lifted.MongoDriver
 import slick.profile.{RelationalDriver, RelationalTableComponent}
 
 import scala.reflect.ClassTag
-import scala.tools.nsc.backend.ScalaPrimitives
 
 
 /**
@@ -16,8 +15,8 @@ import scala.tools.nsc.backend.ScalaPrimitives
 trait DocumentComponent extends RelationalTableComponent {
   driver: MongoDriver =>
 
-  abstract class Document[A](_tableTag: Tag, _tableName: String) // T to jest właściwie cała wartośc wyrażeniua
-    extends Table[A](_tableTag, _tableName) {
+  abstract class Document[A](_documentTag: Tag, _documentName: String)
+    extends Table[A](_documentTag, _documentName) {
 
     def matchType[T](a: String): Rep[T] = implicitly[ClassTag[T]] match {
       case Document => Document[T](a)
@@ -25,18 +24,29 @@ trait DocumentComponent extends RelationalTableComponent {
     }
   }
 
+  abstract case class Document2[A, B](_documentTag: Tag, _documentName: String) extends Document[A](_documentTag, _documentName)
+
+  abstract case class Document3[A, B, C](_documentTag: Tag, _documentName: String) extends Document[A](_documentTag, _documentName)
+
 
   object Document {
     def apply[A](a: String)(implicit _documentTag: Tag, _documentName: String) = new Document[A](_documentTag, _documentName) {
       def cA = matchType[A](a) //type A can be mix of documents and multiple primitive types but how then match a projection
-      * = cA //maybe we should make Shape that takes multiple type parameters ProvenShape[A], ProvenShape[A,B], ProvenShape[A,B,C], ProvenShape[A,B,C,D] etc
+      def * = cA //maybe we should make Shape that takes multiple type parameters ProvenShape[A], ProvenShape[A,B], ProvenShape[A,B,C], ProvenShape[A,B,C,D] etc
     } //I should not creating an object but defining
 
-    //    def apply[A,B](a:String,b:String)(implicit _tableTag: Tag, _tableName: String)=new Document[A,B](_tableTag,_tableName) {
-    //      def cA = matchType[A](a)
-    //      def cB = matchType[B](b)
-    //      def * = (cA,cB)  //maybe provide set of abstract case classes
-    //    }
+    def apply[A, B](a: String, b: String)(implicit _tableTag: Tag, _tableName: String) = new Document2[A, B](_tableTag, _tableName) {
+      def cA = matchType[A](a)
+      def cB = matchType[B](b)
+      def * = (cA, cB) //ProvenShape[A,B]
+    }
+
+    def apply[A, B,C](a: String, b: String,c:String)(implicit _tableTag: Tag, _tableName: String) = new Document3[A, B,C](_tableTag, _tableName) {
+      def cA = matchType[A](a)
+      def cB = matchType[B](b)
+      def cC = matchType[C](c)
+      def * = (cA, cB,cC)  //ProvenShape[A,B,C]
+    }
 
   }
 
