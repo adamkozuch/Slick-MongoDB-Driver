@@ -8,3 +8,8 @@ notifications:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y python-sphinx
+services:
+  - mongodb
+before_script:
+  - sleep 15
+  - mongo mydb_test --eval 'db.addUser("travis", "test");'
