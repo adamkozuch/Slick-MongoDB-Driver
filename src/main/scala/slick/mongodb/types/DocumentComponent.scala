@@ -15,18 +15,17 @@ trait DocumentComponent extends RelationalTableComponent {
   abstract class Document[A](_documentTag: Tag, _documentName: String)
     extends Table[A](_documentTag, _documentName) {
 
-    def document[T](nam: String)(x: T)(implicit ol: OptionLift[T, Rep[Option[T]]]): Rep[Option[T]] = {
-      //wrap the Option into MongoNode in order to keep the name of nested document
-      ol.lift(x).encodeRef(MongoNode(ol.lift(x).toNode,new Symbol {  
-        def name = nam
-      }))
+    def document[T](documentName: String)(x: T)(implicit ol: OptionLift[T, Rep[Option[T]]]): Rep[Option[T]] = {
+      val docName = new Symbol {def name = documentName}
+      //wrap the Option into MongoNode in order to keep the documentName
+      ol.lift(x).encodeRef(MongoNode(ol.lift(x).toNode,docName))
     }
   }
 }
 
 
 //exactly like Select we encode here values of MongoObject and its name
-final case class MongoNode(option: Node, objectName: Symbol) extends UnaryNode with SimplyTypedNode {
+final case class MongoNode(option: Node, documentName: Symbol) extends UnaryNode with SimplyTypedNode {
   type Self = MongoNode
   def child = option
   override def nodeChildNames = Seq("in")
@@ -35,7 +34,7 @@ final case class MongoNode(option: Node, objectName: Symbol) extends UnaryNode w
     case Some(l) => super.getDumpInfo.copy(name = "Path", mainInfo = l.reverseIterator.mkString("."))
     case None => super.getDumpInfo
   }
-  protected def buildType = option.nodeType.select(objectName)
+  protected def buildType = option.nodeType.select(documentName)
 }
 
 

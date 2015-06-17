@@ -53,7 +53,7 @@ class TestTableAndDocument extends FunSuite with BeforeAndAfter with ScalaFuture
   val sequenceForTable = DBIO.seq(simpleQuery +=(2, 3, "222"))
   val sequenceForDocument = DBIO.seq(nestedDocumentQuery +=("firstString", Some(77), Some(22, Some(33, Some(1)))))
 
-  def insertToTable = {db.run(sequenceForTable.result)}.futureValue
+  def insertToTable = {db.run(sequenceForTable)}.futureValue
 
   def resultSimpleInsert = ( db.run(simpleQuery.result)).futureValue
 
