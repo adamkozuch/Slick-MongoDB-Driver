@@ -4,6 +4,8 @@ import slick.ast._
 import slick.lifted._
 import slick.mongodb.lifted.MongoDriver
 import slick.profile.RelationalTableComponent
+import scala.language.experimental.macros
+import scala.reflect.macros.blackbox.Context
 
 
 /**
@@ -14,28 +16,48 @@ trait DocumentComponent extends RelationalTableComponent {
 
   abstract class Document[A](_documentTag: Tag, _documentName: String)
     extends Table[A](_documentTag, _documentName) {
+    def field[T](name: String)(implicit tt: TypedType[T]) = column[T](name)
 
-    def document[T](documentName: String)(x: T)(implicit ol: OptionLift[T, Rep[Option[T]]]): Rep[Option[T]] = {
-      val docName = new Symbol {def name = documentName}
-      //wrap the Option into MongoNode in order to keep the documentName
-      ol.lift(x).encodeRef(MongoNode(ol.lift(x).toNode,docName))
+  }
+  object Document {
+    @inline implicit final def documentShape[Level >: FlatShapeLevel <: ShapeLevel, T, C <: Document[_]](implicit ev: C <:< Document[T]) = RepShape[Level, C, T]
+  }
+}
+// todo It would be better to mixin doc into DocumentComponent(macro needs to be in static context)
+// probably shouldn't use Document[_] from api
+object doc {
+    import slick.mongodb.lifted.MongoDriver.api._
+  /** return a table row class using an arbitrary constructor function. */
+  def apply[D <: Document[_]](cons: Tag => D): D = {
+    cons(new BaseTag {
+      base =>
+      def taggedAs(path: Node): Document[_] = cons(new RefTag(path) {
+        def taggedAs(path: Node) = base.taggedAs(path)
+      })
+    })
+  }
+  /** return a table row class which has a constructor of type (Tag). */
+  def apply[D <: Document[_]]: D = macro docMacroImpl.apply[D]
+}
+
+object docMacroImpl {
+  import slick.mongodb.lifted.MongoDriver.api._
+  def apply[D <: Document[_]](c:  Context)(implicit e: c.WeakTypeTag[D]): c.Expr[D] = {
+    import c.universe._
+    val cons = c.Expr[Tag => D](Function(
+      List(ValDef(Modifiers(Flag.PARAM), newTermName("tag"), Ident(typeOf[Tag].typeSymbol), EmptyTree)),
+      Apply(
+        Select(New(TypeTree(e.tpe)), nme.CONSTRUCTOR),
+        List(Ident(newTermName("tag")))
+      )
+    ))
+    reify {
+      doc.apply[D](cons.splice)
     }
   }
 }
 
 
-//exactly like Select we encode here values of MongoObject and its name
-final case class MongoNode(option: Node, documentName: Symbol) extends UnaryNode with SimplyTypedNode {
-  type Self = MongoNode
-  def child = option
-  override def nodeChildNames = Seq("in")
-  protected[this] def nodeRebuild(child: Node) = copy(option = child).nodeTyped(nodeType)
-  override def getDumpInfo = Path.unapply(this) match {
-    case Some(l) => super.getDumpInfo.copy(name = "Path", mainInfo = l.reverseIterator.mkString("."))
-    case None => super.getDumpInfo
-  }
-  protected def buildType = option.nodeType.select(documentName)
-}
 
 
 
