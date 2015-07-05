@@ -16,15 +16,38 @@ trait DocumentComponent extends RelationalTableComponent {
 
   abstract class Document[A](_documentTag: Tag, _documentName: String)
     extends Table[A](_documentTag, _documentName) {
+
     def field[T](name: String)(implicit tt: TypedType[T]) = column[T](name)
 
+    /**
+     * temporary method for constructing arrays in the future it will be unified with field
+     */
+    def array[E, U, R](value: E)(implicit sh: Shape[_ <: FlatShapeLevel, E, U, R]): Query[R, U, IndexedSeq] = {
+      val shaped = ShapedValue(value, sh).packedValue
+      new WrappingQuery[R, U, IndexedSeq](shaped.toNode, shaped)
+    }
+
+    /**
+     * implicit conversions created in order to unify arrays in field
+     */
+
+    implicit def convert2array[T<:IndexedSeq[_]](implicit sh: Shape[FlatShapeLevel,_,T,_]):Query[Rep[T],T,IndexedSeq]= ???
+
+    implicit def convert2primitive[T<:BaseTypedType](implicit sh: Shape[FlatShapeLevel, _,T,_]):Rep[T] = ???
+
+    implicit def convert2document[T<:Document[_]](implicit sh: Shape[FlatShapeLevel, _,T,_]):T = ???
+
+
+    /**
+     * copy of query shape with changed ShapeLevel to Flat. It is used because query do not accept NestedShapeLevel
+     */
+   implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
   }
+
   object Document {
-    @inline implicit final def documentShape[Level >: FlatShapeLevel <: ShapeLevel, T, C <: Document[_]](implicit ev: C <:< Document[T]) = RepShape[Level, C, T]
+    implicit final def documentShape[Level >: FlatShapeLevel <: ShapeLevel, T, C <: Document[_]](implicit ev: C <:< Document[T]) = RepShape[Level, C, T]
   }
 }
-// todo It would be better to mixin doc into DocumentComponent(macro needs to be in static context)
-// probably shouldn't use Document[_] from api
 object doc {
     import slick.mongodb.lifted.MongoDriver.api._
   /** return a table row class using an arbitrary constructor function. */
@@ -32,7 +55,8 @@ object doc {
     cons(new BaseTag {
       base =>
       def taggedAs(path: Node): Document[_] = cons(new RefTag(path) {
-        def taggedAs(path: Node) = base.taggedAs(path)
+        def taggedAs(path: Node) ={
+          base.taggedAs(path) }   //todo use name from binding
       })
     })
   }
