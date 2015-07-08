@@ -17,31 +17,17 @@ trait DocumentComponent extends RelationalTableComponent {
   abstract class Document[A](_documentTag: Tag, _documentName: String)
     extends Table[A](_documentTag, _documentName) {
 
-    def field[T](name: String)(implicit tt: TypedType[T]) = column[T](name)
+    def field[T](name: String)(implicit tt: TypedType[T], sh: Shape[_ <: FlatShapeLevel, _, T, _]) = column[T](name)
 
     /**
-     * temporary method for constructing arrays in the future it will be unified with field
+     * Method for creating an arrays of primitive types and documents
+     * we create and array by passing as a parameter result of method field[T] or doc[T]
+     * good idea would be to unify arrays into field ex. field[IndexedSeq[Int]]("someName") orfield[IndexedSeq[SomeDocument]]("someName")
      */
-    def array[E, U, R](value: E)(implicit sh: Shape[_ <: FlatShapeLevel, E, U, R]): Query[R, U, IndexedSeq] = {
+    def array[E, U](value: E)(implicit sh: Shape[_ <: FlatShapeLevel, E, U, E]): Query[E, U, IndexedSeq] = {
       val shaped = ShapedValue(value, sh).packedValue
-      new WrappingQuery[R, U, IndexedSeq](shaped.toNode, shaped)
+      new WrappingQuery[E, U, IndexedSeq](shaped.toNode, shaped)
     }
-
-    /**
-     * implicit conversions created in order to unify arrays in field
-     */
-//    def prototypeField[T](name: String)(implicit sh: Shape[FlatShapeLevel,_,T,_])= sh
-//    implicit def convert2array[T<:IndexedSeq[_],Q<:QueryBase](implicit sh: Shape[FlatShapeLevel,Q,T,_]):Q= ???
-//
-//    implicit def convert2primitive[T<:TypedType[_],M](implicit sh: Shape[FlatShapeLevel, M,T,_], tt:TypedType[T]):M = ???
-//
-//    implicit def convert2document[T<:Document[_]](implicit sh: Shape[FlatShapeLevel, _,T,_]):T = ???
-
-    /**
-     * copy of query shape with changed ShapeLevel to Flat. It is used because query do not accept NestedShapeLevel
-     */
-    implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
-
   }
 
   object Document {

@@ -46,7 +46,6 @@ class BTables(tag: Tag) extends Document[Bs](tag, "tableB") {
   def * = (c, d) <>(Bs.tupled, Bs.unapply)
 }
 
-
 class arrayTest extends FunSuite with BeforeAndAfter with ScalaFutures {
   implicit override val patienceConfig = PatienceConfig(timeout = Span(50, Seconds))
 
@@ -76,26 +75,27 @@ class arrayTest extends FunSuite with BeforeAndAfter with ScalaFutures {
   }.futureValue
 
   def primitiveArrayresult = {
-    implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
     db.run(arrayQuery.map(x => x.fifth).result)
   }.futureValue
 
   def resultSimpleInsert = {
-    implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
 
-    (db.run(arrayQuery.map(x => x.fourth).result)).futureValue
+    (db.run(arrayQuery.map(x => x.fourth.map(x => x*x)).result)).futureValue
   }
-
 
   test("array insert result") {
     primitiveArrayInsert
-    //  nestedInsertAction
-
 
     Thread.sleep(100)
     val result = primitiveArrayresult
+    println(resultSimpleInsert)
 
     assert(result.toString == "Vector(([ [ 3 , 4 , 5] , [ 7 , 8 , 9]]))")
+  }
+
+  test("nested insert")
+  {
+    nestedInsertAction
   }
 
 

@@ -16,7 +16,7 @@ import slick.util.{SQLBuilder, DumpInfo}
 import scala.language.{higherKinds, implicitConversions}
 import slick.ast._
 import slick.compiler.QueryCompiler
-import slick.lifted.Query
+import slick.lifted.{QueryBase, RepShape, Query}
 import slick.mongodb.direct.{GetResult, MongoQuery, MongoBackend}
 import slick.profile.{FixedBasicStreamingAction, FixedBasicAction, RelationalDriver, RelationalProfile}
 
@@ -38,6 +38,8 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
   trait API extends super.API with CommonImplicits
 {
   type Document[T] = driver.Document[T]
+  implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
+
 }
 
   trait SimpleQL extends super.SimpleQL with Implicits
