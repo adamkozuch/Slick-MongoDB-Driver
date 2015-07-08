@@ -30,22 +30,23 @@ trait DocumentComponent extends RelationalTableComponent {
     /**
      * implicit conversions created in order to unify arrays in field
      */
-
-    implicit def convert2array[T<:IndexedSeq[_]](implicit sh: Shape[FlatShapeLevel,_,T,_]):Query[Rep[T],T,IndexedSeq]= ???
-
-    implicit def convert2primitive[T<:BaseTypedType](implicit sh: Shape[FlatShapeLevel, _,T,_]):Rep[T] = ???
-
-    implicit def convert2document[T<:Document[_]](implicit sh: Shape[FlatShapeLevel, _,T,_]):T = ???
-
+//    def prototypeField[T](name: String)(implicit sh: Shape[FlatShapeLevel,_,T,_])= sh
+//    implicit def convert2array[T<:IndexedSeq[_],Q<:QueryBase](implicit sh: Shape[FlatShapeLevel,Q,T,_]):Q= ???
+//
+//    implicit def convert2primitive[T<:TypedType[_],M](implicit sh: Shape[FlatShapeLevel, M,T,_], tt:TypedType[T]):M = ???
+//
+//    implicit def convert2document[T<:Document[_]](implicit sh: Shape[FlatShapeLevel, _,T,_]):T = ???
 
     /**
      * copy of query shape with changed ShapeLevel to Flat. It is used because query do not accept NestedShapeLevel
      */
-   implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
+    implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
+
   }
 
   object Document {
     implicit final def documentShape[Level >: FlatShapeLevel <: ShapeLevel, T, C <: Document[_]](implicit ev: C <:< Document[T]) = RepShape[Level, C, T]
+
   }
 }
 object doc {
