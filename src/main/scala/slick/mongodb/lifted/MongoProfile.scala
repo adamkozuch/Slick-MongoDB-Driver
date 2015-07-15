@@ -8,6 +8,7 @@ import slick.dbio.Effect.Schema
 import slick.dbio.{Streaming, SynchronousDatabaseAction, Effect, NoStream}
 import slick.jdbc.StreamingInvokerAction
 import slick.memory.DistributedBackend
+import slick.mongodb.{AssignUniqueSymbolsMongo}
 import slick.mongodb.types.DocumentComponent
 import slick.relational.CompiledMapping
 import slick.util.{SQLBuilder, DumpInfo}
@@ -15,7 +16,7 @@ import slick.util.{SQLBuilder, DumpInfo}
 
 import scala.language.{higherKinds, implicitConversions}
 import slick.ast._
-import slick.compiler.QueryCompiler
+import slick.compiler.{Phase, QueryCompiler}
 import slick.lifted.{QueryBase, RepShape, Query}
 import slick.mongodb.direct.{GetResult, MongoQuery, MongoBackend}
 import slick.profile.{FixedBasicStreamingAction, FixedBasicAction, RelationalDriver, RelationalProfile}
@@ -29,8 +30,26 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
   override val Implicit: Implicits = simple
   override val simple: SimpleQL  = new SimpleQL {}
   override val api = new API{}
- override val profile =this
+  override val profile =this
 
+  //
+  val standardPhases = Vector(
+    // Clean up trees from the lifted embedding
+    new AssignUniqueSymbolsMongo,
+    // Distribute and normalize
+    Phase.inferTypes,
+    Phase.expandTables,
+    Phase.createResultSetMapping,
+    Phase.forceOuterBinds,
+    // Convert to column form
+    Phase.expandSums,
+    Phase.expandConditionals,
+    Phase.expandRecords,
+    Phase.flattenProjections,
+    Phase.relabelUnions,
+    Phase.pruneFields,
+    Phase.assignTypes
+  )
 
   protected trait CommonImplicits extends super.CommonImplicits with ImplicitColumnTypes
 //  trait Implicits extends super.Implicits with CommonImplicits
@@ -38,6 +57,7 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
   trait API extends super.API with CommonImplicits
 {
   type Document[T] = driver.Document[T]
+  //todo this shape should be move out from driver
   implicit def flatQueryShape[Level >: FlatShapeLevel <: ShapeLevel, T, Q <: QueryBase[_]](implicit ev: Q <:< Rep[T]) = RepShape[Level, Q, T]
 
 }
@@ -45,14 +65,13 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
   trait SimpleQL extends super.SimpleQL with Implicits
 
 
-
-
   // TODO: extend for complicated node structure, probably mongodb nodes should be used
   /** (Partially) compile an AST for insert operations */
   override def compileInsert(n: Node): CompiledInsert = n
 
+
   /** The compiler used for queries */
-  override def queryCompiler: QueryCompiler = compiler ++ QueryCompiler.relationalPhases
+  override def queryCompiler: QueryCompiler = new QueryCompiler(standardPhases) ++ QueryCompiler.relationalPhases
   /** The compiler used for updates */
   override def updateCompiler: QueryCompiler = ???
   /** The compiler used for deleting data */
