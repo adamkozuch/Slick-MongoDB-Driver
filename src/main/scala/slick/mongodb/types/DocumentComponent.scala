@@ -30,6 +30,36 @@ trait DocumentComponent extends RelationalTableComponent {
     }
   }
 
+  abstract class SubDocument[A](_documentTag: Tag, _documentName: String)
+    extends Document[A](_documentTag, _documentName) {
+    override def toNode = tableTag match {
+      case _: BaseTag =>
+        val sym = new AnonSymbol // todo what would be the right symbol for this
+        StructNode(tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => (sym, x)).toIndexedSeq)
+      case t: RefTag => t.path
+    }
+
+    // todo modyfy to node method in a way it will return method with right reference
+    override def column[C](n: String, options: ColumnOption[C]*)(implicit tt: TypedType[C]): Rep[C] = {
+      if(tt == null) throw new NullPointerException(
+        "implicit TypedType[C] for column[C] is null. "+
+          "This may be an initialization order problem. "+
+          "When using a MappedColumnType, you may want to change it from a val to a lazy val or def.")
+      new Rep.TypedRep[C] {
+        override def toNode =
+          Select((tableTag match {
+            case r: RefTag => r.path
+            case _ => tableNode
+          }), FieldSymbol(n)(options, tt)) :@ tt
+        override def toString = (tableTag match {
+          case r: RefTag => "(" + _documentName + " " + r.path + ")"
+          case _ => _documentName
+        }) + "." + n
+      }
+    }
+  }
+
+
   object Document {
     implicit final def documentShape[Level >: FlatShapeLevel <: ShapeLevel, T, C <: Document[_]](implicit ev: C <:< Document[T]) = RepShape[Level, C, T]
 
