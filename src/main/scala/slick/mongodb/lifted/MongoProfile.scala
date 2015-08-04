@@ -1,18 +1,6 @@
 package slick.mongodb.lifted
 
-import com.mongodb.casbah.commons.MongoDBObject
-import slick.SlickException
-import slick.ast.TypeUtil.:@
-import slick.backend.RelationalBackend
-import slick.dbio.Effect.Schema
-import slick.dbio.{Streaming, SynchronousDatabaseAction, Effect, NoStream}
-import slick.jdbc.StreamingInvokerAction
-import slick.memory.DistributedBackend
-import slick.mongodb.compiler.{CreateResultConverter, ExpandDocument}
-
 import slick.mongodb.types.DocumentComponent
-import slick.relational.CompiledMapping
-import slick.util.{SQLBuilder, DumpInfo}
 
 
 import scala.language.{higherKinds, implicitConversions}
