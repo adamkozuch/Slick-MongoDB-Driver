@@ -16,27 +16,34 @@ case class third(c: Int, fourthLevel: IndexedSeq[fourth])
 case class fourth(c: Int, d: IndexedSeq[Int])
 
 
-class firstLevelDocument(tag:Tag) extends Document[first](tag,"firstLevelDocument") {
+class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocument") {
+
   def x1 = field[Int]("primitiveFieldFirstLevel")
-  def secondDoc = doc[secoundLevelDocument]
+  def secondDoc = doc[secoundLevelDocument](tags,tableName)
   def arrOfString = array(field[String]("y"))
   def * = (x1, secondDoc, arrOfString) <> (first.tupled, first.unapply)
+
+
 }
 
-class secoundLevelDocument(tag:Tag) extends Document[second](tag,"secoundLevelDocument") {
+class secoundLevelDocument(tag:Tag) extends SubDocument[second](tag,"secoundLevelDocument") {
+  type previousDocument = firstLevelDocument
   def x2 = field[Int]("primitiveFieldSecundLevel")
-  def thirdDoc = doc[thirdLevelDocument]
+  def thirdDoc = doc[thirdLevelDocument](tag, tableName)
   def * = (x2, thirdDoc) <> (second.tupled, second.unapply)
 }
 
-class thirdLevelDocument(tag:Tag) extends Document[third](tag,"thirdLevelDocument") {
+class thirdLevelDocument(tag:Tag) extends SubDocument[third](tag,"thirdLevelDocument") {
+  type previousDocument = secoundLevelDocument
   def x3 = field[Int]("primitiveFieldThirdLevel")
-  def arrayOfFurthDoc = array(doc[fourthLevelDocument])
+  def arrayOfFurthDoc = array(doc[fourthLevelDocument](tag,tableName))
   def * = (x3, arrayOfFurthDoc) <> (third.tupled, third.unapply)
 }
 
 
-class fourthLevelDocument(tag:Tag) extends Document[fourth](tag,"fourthLevelDocument") {
+class fourthLevelDocument(tag:Tag) extends SubDocument[fourth](tag,"fourthLevelDocument") {
+  type previousDocument = thirdLevelDocument
+
   def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
   def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
   def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
@@ -44,10 +51,11 @@ class fourthLevelDocument(tag:Tag) extends Document[fourth](tag,"fourthLevelDocu
 
 
 
+
 class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures {
 
   implicit override val patienceConfig = PatienceConfig(timeout = Span(50, Seconds))
-  
+
   val documentQuery = TableQuery[firstLevelDocument]
 
   before {
@@ -55,7 +63,7 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   }
 
   var db: Database = _
-  
+
   /**
    * slick.ast.Comprehension cannot be cast to slick.ast.Select.
    * LiftedMongoInvoker.scala:20
@@ -72,7 +80,7 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   test("two level field select ")
   {
    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result)).futureValue
-    //result
+    result
   }
 
   /**
@@ -80,8 +88,8 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
    */
   test("secoud level document select")
   {
-  lazy  val result = ( db.run(documentQuery.map(x => x.secondDoc).result)).futureValue
-    //result
+  lazy  val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc.x3).result)).futureValue
+    result
   }
 
   /**
@@ -90,8 +98,8 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
    */
   test("filter by nested field")
   {
-  lazy val result = ( db.run(documentQuery.filter(x => x.secondDoc.thirdDoc.x3>7).result)).futureValue
-    //result
+  lazy val result = ( db.run(documentQuery.sortBy(_.x1).filter(x => x.secondDoc.thirdDoc.x3>7).map(x => x.secondDoc.thirdDoc).result)).futureValue
+    result
   }
 
   /**
