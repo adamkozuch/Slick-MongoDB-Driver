@@ -28,18 +28,21 @@ trait DocumentComponent extends RelationalTableComponent {
      */
     def array[E, U](value: E)(implicit sh: Shape[_ <: FlatShapeLevel, E, U, E]): Query[E, U, IndexedSeq] = {
       val shaped = ShapedValue(value, sh).packedValue
-      new WrappingQuery[E, U, IndexedSeq](shaped.toNode, shaped) //todo shaped.toNode should be wrapped in array node
+      new WrappingQuery[E, U, IndexedSeq](Pure(shaped.toNode), shaped) //todo shaped.toNode should be wrapped in array node
     }
 
     override def toNode = tableTag match {
       case _: BaseTag =>
 
         val sym = new NewAnonSymbol
-        val columns = tableTag.taggedAs(Ref(sym)).*.toNode match {
-          case t: TypeMapping => StructNode(t.child.children.map(x => (sym, x)).toIndexedSeq)
-        }
 
-        TableExpansion(sym, tableNode, StructNode(tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => (sym, x)).toIndexedSeq))
+//        val collectSymbols = tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match{
+//          case Select(in,s) => s
+//          case _ => new FieldSymbol(_documentName)(Seq(),UnassignedType)
+//        })
+
+        // product node is changed during query compilation
+        TableExpansion(sym, tableNode, ProductNode((  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq))
       case t: RefTag => t.path
     }
 
@@ -53,15 +56,26 @@ trait DocumentComponent extends RelationalTableComponent {
     override def toNode = tableTag match {
       case _: BaseTag => {
 
+
+
         val docNameSymbol = new FieldSymbol(_documentName)(Seq(), UnassignedType)
+
+        val collectSymbols = tableTag.taggedAs(Ref(docNameSymbol)).*.toNode.children(0).children.map(x => x match{
+          case Select(in,s) => s
+          case StructNode(ls) =>ls(0)._1// hack that works
+          case p :Pure => new FieldSymbol("symbolkolekcji")(Seq(), UnassignedType)
+        })
+
 
         val refine = tableTag.taggedAs(Ref(docNameSymbol))
         val symbols = Path.unapply(refine.tableTag.asInstanceOf[RefTag].path).get
+
         /** type of symbol in the end of list list decide if it will be nested Select or
           *StructNode for building type in TableNode , Select for projection */
+         // todo I should put symbol not from this table but from next
 
         val result = symbols match {
-          case l if l.last.isInstanceOf[NewAnonSymbol] => StructNode(refine.*.toNode.children(0).children.map(x => (docNameSymbol, x)).toIndexedSeq)
+          case l if l.last.isInstanceOf[NewAnonSymbol] => StructNode(IndexedSeq((docNameSymbol,StructNode(  (collectSymbols zip refine.*.toNode.children(0).children).toIndexedSeq))))
           case l if l.last.isInstanceOf[AnonSymbol] => Path(l)
         }
         //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,8 +128,12 @@ object doc {
     //todo find solution that do not require tag and name
     val extract: RefTag = t match {
       case r: RefTag => r
-      case b: BaseTag => t.taggedAs(Ref(new FieldSymbol(name)(Seq(), UnassignedType))).tableTag.asInstanceOf[RefTag] // extracting ref tag
+      case b: BaseTag => {
+       val s = t.taggedAs(Ref(new FieldSymbol(name)(Seq(), UnassignedType))).tableName // get current table name
+        t.taggedAs(Ref(new FieldSymbol(s)(Seq(), UnassignedType))).tableTag.asInstanceOf[RefTag]
+      }// extracting ref tag
     }
+
     val getSymbols = Path.unapply(extract.path).get
     cons(new BaseTag {
       base: BaseTag =>
