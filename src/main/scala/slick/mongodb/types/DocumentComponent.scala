@@ -1,7 +1,9 @@
 package slick.mongodb.types
 
+import slick.ast.Type.Scope
 import slick.ast._
 import slick.lifted._
+import slick.mongodb.SubDocNode
 import slick.mongodb.lifted.MongoDriver
 import slick.profile.RelationalTableComponent
 import scala.collection.mutable.ListBuffer
@@ -28,7 +30,7 @@ trait DocumentComponent extends RelationalTableComponent {
      */
     def array[E, U](value: E)(implicit sh: Shape[_ <: FlatShapeLevel, E, U, E]): Query[E, U, IndexedSeq] = {
       val shaped = ShapedValue(value, sh).packedValue
-      new WrappingQuery[E, U, IndexedSeq](Pure(shaped.toNode), shaped) //todo shaped.toNode should be wrapped in array node
+      new WrappingQuery[E, U, IndexedSeq](shaped.toNode, shaped) //todo shaped.toNode should be wrapped in array node
     }
 
     override def toNode = tableTag match {
@@ -36,13 +38,13 @@ trait DocumentComponent extends RelationalTableComponent {
 
         val sym = new NewAnonSymbol
 
-//        val collectSymbols = tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match{
-//          case Select(in,s) => s
-//          case _ => new FieldSymbol(_documentName)(Seq(),UnassignedType)
-//        })
+        val collectSymbols = tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match{
+          case Select(in,s) => s
+          case SubDocNode(t,n) => t
+        })
 
         // product node is changed during query compilation
-        TableExpansion(sym, tableNode, ProductNode((  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq))
+        TableExpansion(sym, tableNode, StructNode((collectSymbols zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq))
       case t: RefTag => t.path
     }
 
@@ -63,6 +65,7 @@ trait DocumentComponent extends RelationalTableComponent {
         val collectSymbols = tableTag.taggedAs(Ref(docNameSymbol)).*.toNode.children(0).children.map(x => x match{
           case Select(in,s) => s
           case StructNode(ls) =>ls(0)._1// hack that works
+          case SubDocNode(t,n) => t
           case p :Pure => new FieldSymbol("symbolkolekcji")(Seq(), UnassignedType)
         })
 
@@ -75,10 +78,9 @@ trait DocumentComponent extends RelationalTableComponent {
          // todo I should put symbol not from this table but from next
 
         val result = symbols match {
-          case l if l.last.isInstanceOf[NewAnonSymbol] => StructNode(IndexedSeq((docNameSymbol,StructNode(  (collectSymbols zip refine.*.toNode.children(0).children).toIndexedSeq))))
+          case l if l.last.isInstanceOf[NewAnonSymbol] => SubDocNode(docNameSymbol,StructNode(  (collectSymbols zip refine.*.toNode.children(0).children).toIndexedSeq))
           case l if l.last.isInstanceOf[AnonSymbol] => Path(l)
         }
-        //////////////////////////////////////////////////////////////////////////////////////////////////////
 
         result
       }
@@ -116,6 +118,8 @@ trait DocumentComponent extends RelationalTableComponent {
 
 }
 
+
+
 object doc {
 
   import slick.mongodb.lifted.MongoDriver.api._
@@ -126,11 +130,11 @@ object doc {
 
     /** we take name and tag of document in which method doc is invoked we use it for building correct path */
     //todo find solution that do not require tag and name
+    //todo find better way to extract symbols from tag
     val extract: RefTag = t match {
       case r: RefTag => r
       case b: BaseTag => {
-       val s = t.taggedAs(Ref(new FieldSymbol(name)(Seq(), UnassignedType))).tableName // get current table name
-        t.taggedAs(Ref(new FieldSymbol(s)(Seq(), UnassignedType))).tableTag.asInstanceOf[RefTag]
+        t.taggedAs(Ref(new FieldSymbol(name)(Seq(), UnassignedType))).tableTag.asInstanceOf[RefTag]
       }// extracting ref tag
     }
 

@@ -11,9 +11,11 @@ import slick.mongodb.types.doc
  */
 
 case class first(x: Int, secondLevel: second, y: IndexedSeq[String])
-case class second(c: Int, thirdLevel: third)
-case class third(c: Int, fourthLevel: IndexedSeq[fourth])
+case class second(c: Int, thirdLevel: third1, thirdLevel2:third2)
+case class third1(c: Int, fourthLevel: fourth)
+case class third2(c: Double, s: String)
 case class fourth(c: Int, d: IndexedSeq[Int])
+
 
 
 class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocument") {
@@ -29,20 +31,34 @@ class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocum
 class secoundLevelDocument(tag:Tag) extends SubDocument[second](tag,"secoundLevelDocument") {
   type previousDocument = firstLevelDocument
   def x2 = field[Int]("primitiveFieldSecundLevel")
-  def thirdDoc = doc[thirdLevelDocument](tag, tableName)
-  def * = (x2, thirdDoc) <> (second.tupled, second.unapply)
+  def thirdDoc1 = doc[thirdLevelDocument1](tag,tableName)
+  def thirdDoc2 = doc[thirdLevelDocument2](tag,tableName)
+  def * = (x2, thirdDoc1, thirdDoc2) <> (second.tupled, second.unapply)
 }
 
-class thirdLevelDocument(tag:Tag) extends SubDocument[third](tag,"thirdLevelDocument") {
+class thirdLevelDocument1(tag:Tag) extends SubDocument[third1](tag,"thirdLevelDocument1") {
   type previousDocument = secoundLevelDocument
   def x3 = field[Int]("primitiveFieldThirdLevel")
-  def arrayOfFurthDoc = array(doc[fourthLevelDocument](tag,tableName))
-  def * = (x3, arrayOfFurthDoc) <> (third.tupled, third.unapply)
+  def arrayOfFurthDoc = doc[fourthLevelDocument](tag,tableName)
+  def * = (x3, arrayOfFurthDoc) <> (third1.tupled, third1.unapply)
+}
+
+class thirdLevelDocument2(tag:Tag) extends SubDocument[third2](tag,"thirdLevelDocument2") {
+  type previousDocument = secoundLevelDocument
+  def x3 = field[Double]("primitiveFieldThirdLevel11")
+  def x4 = field[String]("primitiveFieldThirdLevel22")
+  def * = (x3, x4) <> (third2.tupled, third2.unapply)
 }
 
 
 class fourthLevelDocument(tag:Tag) extends SubDocument[fourth](tag,"fourthLevelDocument") {
-  type previousDocument = thirdLevelDocument
+  def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
+  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
+  def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
+}
+
+
+class additional1(tag:Tag) extends SubDocument[fourth](tag,"add1") {
 
   def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
   def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
@@ -50,6 +66,12 @@ class fourthLevelDocument(tag:Tag) extends SubDocument[fourth](tag,"fourthLevelD
 }
 
 
+class additional2(tag:Tag) extends SubDocument[fourth](tag,"add2") {
+
+  def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
+  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
+  def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
+}
 
 
 class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures {
@@ -64,53 +86,41 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   var db: Database = _
 
-  /**
-   * slick.ast.Comprehension cannot be cast to slick.ast.Select.
-   * LiftedMongoInvoker.scala:20
-   */
+
   test("third level document select")
   {
-  lazy val result =  (db.run(documentQuery.map(x => x.secondDoc.thirdDoc).result)).futureValue
+  lazy val result =  (db.run(documentQuery.map(x => x.secondDoc.thirdDoc1).result)).futureValue
    // result
   }
 
-  /**
-   * java.util.NoSuchElementException, with message: None.get
-   */
+
   test("two level field select ")
   {
    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result)).futureValue
-    result
+    //result
   }
 
-  /**
-   * slick.ast.Comprehension cannot be cast to slick.ast.Select
-   */
+
   test("secoud level document select")
   {
-  lazy  val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc.x3).result)).futureValue
+  lazy  val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc1.arrayOfFurthDoc).result)).futureValue
     result
   }
 
-  /**
-   * scala.MatchError, with message: Select c (of class slick.ast.Select)
-   * singleArgumentFunctionParameters(LiftedMongoInvoker.scala:181)
-   */
+
   test("filter by nested field")
   {
-  lazy val result = ( db.run(documentQuery.sortBy(_.x1).filter(x => x.secondDoc.thirdDoc.x3>7).map(x => x.secondDoc.thirdDoc).result)).futureValue
+  lazy val result = ( db.run(documentQuery.filter(x =>( x.secondDoc.thirdDoc1.x3>7 && x.x1>166)).map(x => x.secondDoc.thirdDoc1).result)).futureValue
     result
   }
 
-  /**
-   * scala.MatchError, with message: TableExpansion (of class slick.ast.TableExpansion).
-   * in liftedInvoker
-   */
+
   test("nested insert")
   {
-    val simpleInsert = DBIO.seq(documentQuery +=(first(1,second(4,third(5,IndexedSeq(fourth(50,IndexedSeq(2,3,4,5)),fourth(50,IndexedSeq(2,3,4,5))))), IndexedSeq("jdjd","jdjjd"))))
-   lazy val result =  (db.run(simpleInsert)).futureValue
-    //result
+
+    val simpleInsert = DBIO.seq(documentQuery +=(first(5,second(1,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  )))
+  lazy val result =  (db.run(simpleInsert)).futureValue
+    result
   }
 
 }

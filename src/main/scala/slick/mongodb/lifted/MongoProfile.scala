@@ -1,6 +1,6 @@
 package slick.mongodb.lifted
 
-import slick.mongodb.compiler.{fixColumns, ExpandDocument}
+import slick.mongodb.compiler.{RemoveSubDocNodes, ExpandDocument}
 import slick.mongodb.types.DocumentComponent
 
 
@@ -44,7 +44,7 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
 
 
   /** The compiler used for queries */
-  override def queryCompiler: QueryCompiler = new QueryCompiler(Vector(new fixColumns,Phase.assignUniqueSymbols, new ExpandDocument))
+  override def queryCompiler: QueryCompiler = new QueryCompiler(Vector(new RemoveSubDocNodes,Phase.assignUniqueSymbols, new ExpandDocument, Phase.verifySymbols,Phase.verifyTypes, Phase.verifyTypesServerSide, Phase.expandSums))
   /** The compiler used for updates */
   override def updateCompiler: QueryCompiler = ???
   /** The compiler used for deleting data */

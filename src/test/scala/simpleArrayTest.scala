@@ -8,8 +8,8 @@ import slick.mongodb.lifted.MongoDriver.api._
 import slick.mongodb.types.{doc}
 
 /**
- * Created by adam on 03.07.15.
- */
+* Created by adam on 03.07.15.
+*/
 
 
 class DcumentWithArrays(tag: Tag)
@@ -54,9 +54,9 @@ class simpleArrayTest extends FunSuite with BeforeAndAfter with ScalaFutures {
   test("array insert result") {
     val insert = DBIO.seq(arrayQuery +=(IndexedSeq(1, 2, 3, 4), IndexedSeq(IndexedSeq(3, 4, 5), IndexedSeq(7, 8, 9))))
 
-    {
-      db.run(insert)
-    }.futureValue
+//    {
+//      db.run(insert)
+//    }.futureValue
     Thread.sleep(100)
     val result1 = {
       db.run(arrayQuery.map(x => x.twoLevelsPrimitiveArray).result)
@@ -88,7 +88,7 @@ class simpleArrayTest extends FunSuite with BeforeAndAfter with ScalaFutures {
   lazy  val result1 = {
       db.run(arrayQueryMap.map(x => x.twoLevelsPrimitiveArray).result)
     }.futureValue
- lazy   val result2 = {
+lazy   val result2 = {
       db.run(arrayQueryMap.map(x => x.oneLevelPrimitiveArray).result)
     }.futureValue
   lazy  val result3 = {

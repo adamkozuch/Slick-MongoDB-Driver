@@ -7,6 +7,8 @@ import slick.ast._
 import slick.mongodb.MongoInvoker
 import slick.mongodb.direct.{GetResult, MongoBackend, TypedMongoCollection}
 
+import scala.reflect.ClassTag
+
 
 trait GenericLiftedMongoInvoker[T]  {
   protected def queryNode: Node
@@ -16,9 +18,9 @@ trait GenericLiftedMongoInvoker[T]  {
 
   /** Used to retrieve attribute names and their types from the query node*/
   protected def attributes[String] = queryNode match {  // todo for now result without a type
-    case TableExpansion(_,_,pn: ProductNode) => pn.nodeChildren.map(_.asInstanceOf[Select].field.name)  //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children  // todo build type is now protected resolve problem
-    case ResultSetMapping(_,Comprehension(_,_,_,_,Some(Pure(pn:ProductNode,_)),_,_),_) => pn.nodeChildren.map(_.asInstanceOf[Select].field.name) //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children
-    case TableExpansion(_,_,TypeMapping(ch,_,_)) =>  ch.nodeChildren.map(_.asInstanceOf[Select].field.name)
+    case TableExpansion(_,_,pn: ProductNode) => pn.children.map(_.asInstanceOf[Select].field.name)  //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children  // todo build type is now protected resolve problem
+   // case ResultSetMapping(_,Comprehension(_,_,_,_,Some(Pure(pn:ProductNode,_)),_,_),_) => pn.children.map(_.asInstanceOf[Select].field.name) //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children
+    case TableExpansion(_,_,TypeMapping(ch,_,_)) =>  ch.children.map(_.asInstanceOf[Select].field.name)
   }
 
   /** Used to convert data from DBObject to specified type after find operation - required for TypedMongoCollection creation */
@@ -42,9 +44,9 @@ trait GenericLiftedMongoInvoker[T]  {
     case te: TableExpansion =>
       val collectionName = te.table.asInstanceOf[TableNode].tableName
       new TypedMongoCollection[Product](collectionName)(session,converter)
-    case ResultSetMapping(_,Comprehension(from,_,_,_,_,_,_),_) =>
-      val collectionName = from(0)._2.asInstanceOf[TableNode].tableName
-      new TypedMongoCollection[Product](collectionName)(session,converter)
+//    case ResultSetMapping(_,Comprehension(from,_,_,_,_,_,_),_) =>
+//      val collectionName = from(0)._2.asInstanceOf[TableNode].tableName
+//      new TypedMongoCollection[Product](collectionName)(session,converter)
     case _ => throw new IllegalArgumentException("Only nodes of type TableExpansion supported")
   }
 }
@@ -108,17 +110,20 @@ class LiftedMongoInvoker[T](val queryNode: Node, val session: MongoBackend#Sessi
 
   // TODO: make `collection(session)` return `TypedMongoCollection[T]`, not `TypedMongoCollection[Product]`
   override lazy val mongoCollection: TypedMongoCollection[T] = collection(session).asInstanceOf[TypedMongoCollection[T]]
-  override lazy val query: Option[DBObject] = mongoQuery.map(_.underlying)
+  override lazy val query: Option[DBObject] = ??? //mongoQuery.map(_.underlying)
 
-  val comprehension = queryNode.asInstanceOf[ResultSetMapping].left
-  val mongoQuery: Option[MongoDBObject] = comprehension match {
-//  Comprehension(from,where,groupBy,orderBy,select,fetch,offset)
-    case Comprehension(from,where,None,orderBy,_,_,_) if from.size == 1 && where.isEmpty && orderBy.isEmpty => None
-    case Comprehension(from,where,None,orderBy,_,_,_) if from.size == 1 && orderBy.isEmpty =>
-      val q = where.foldLeft(new MongoDBObject) ((dbObject,node) => appendQueryParameterFromNode(node,dbObject))
-      println(q)
-      Some(q)
+  val comprehension = {
+
+    queryNode.asInstanceOf[ResultSetMapping].left
   }
+//  val mongoQuery: Option[MongoDBObject] = comprehension match {
+////  Comprehension(from,where,groupBy,orderBy,select,fetch,offset)
+//    case Comprehension(from,where,None,orderBy,_,_,_) if from.size == 1 && where.isEmpty && orderBy.isEmpty => None
+//    case Comprehension(from,where,None,orderBy,_,_,_) if from.size == 1 && orderBy.isEmpty =>
+//     // val q = where.foldLeft(new MongoDBObject) ((dbObject,node) => appendQueryParameterFromNode(node,dbObject))
+//      println(q)
+//      Some(q)
+//  }
 
   // TODO: add support for other operators here
   // TODO: does it make sense to use query builder instead of `query: MongoDBObject` here ?
@@ -177,7 +182,7 @@ class LiftedMongoInvoker[T](val queryNode: Node, val session: MongoBackend#Sessi
   
   def multipleArgumentFunctionParameters(arguments: Seq[Node]):(String,Seq[Any]) = {
     val attributeName = (arguments(0) match {case Path(an :: _)=>an}).toString
-    val parameters = arguments(1).asInstanceOf[ProductNode].nodeChildren map {case LiteralNode(v)=>v}
+    val parameters = arguments(1).asInstanceOf[ProductNode].children.map {case LiteralNode(v)=>v}
     println(s"attributeName=$attributeName")
     println(s"value=$parameters")
     (attributeName,parameters)

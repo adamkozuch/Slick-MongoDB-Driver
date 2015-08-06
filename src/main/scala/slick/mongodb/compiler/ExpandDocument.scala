@@ -13,41 +13,42 @@ import TypeUtil._
  * Expand document into
  */
 class ExpandDocument extends Phase {
-  val name = "expandTables"
+  val name = "expandDocument"
 
   def apply(state: CompilerState) = state.map { n => ClientSideOp.mapServerSide(n) { tree =>
 
+    val from: Node = tree match {
+      case Bind(g, f, s) => f
+      case a => a
+    }
+    val from2 = from.infer()
 
+    /**
+    Type from columns in TableExpansion is a type of Document
+     */
+    val structs = from2.collect {
+      case TableExpansion(_, TableNode(_, _, sym, _, _), c) => (sym -> c.nodeType)
+    }.toMap
 
-// very ugly way to do that
+    /**
+    Correct type in from
+     */
+    val from3 = from2.replace({
+      case TableExpansion(_, t, _) => t
+      case n => n :@ n.nodeType.replace { case NominalType(tsym:TableIdentitySymbol, UnassignedType) => NominalType(tsym, structs(tsym)) }
+    }, keepType = true, bottomUp = true)
 
+    val tree2 = tree match {
+      case Bind(g, f, s) => Bind(g, from3, s)
+      case a => a
+    }
 
-    val f= tree.collect({case f:Filter=> f})(0).infer()
+    /*
+    After setting correct type in from infer type of whole Binding
+     */
+    val tree3 = tree2.infer(typeChildren = true)
 
-    val forInfer =  f.collect({case  TableExpansion(g,t,(c :@ n)) => TableExpansion(g,t :@ t.nodeType.replace({case CollectionType(cons,NominalType(sym,UnassignedType))=> CollectionType(cons,NominalType(sym,n))}) ,c ) })(0)
-val tableWithType:Node = forInfer match {case TableExpansion(g,t,c) => t}
-
-  val weWillSee  =  f.replace({case t:TableExpansion => tableWithType}).infer()
-
-    val trr  = tree.replace({case f:Filter => weWillSee })
-
-
-    val tyty = trr.collect({case Bind(g,f :@ n,s ) =>n })
-
-   val ttts= tyty.map{case CollectionType(c,t) => t}
-
-
- val next =   trr.replace({case Ref(a) if tyty.contains(a) => Ref(a) :@ ttts(0)  })
-
-    val nextInfer= next.infer()
-
-
-
-
-
-
-val bbb = nextInfer.asInstanceOf[Bind]
-    ResultSetMapping(new AnonSymbol,bbb.from,bbb.select).infer()
+    tree3
 
   }
 
