@@ -40,7 +40,7 @@ class ExpandDocument extends Phase {
 
     val tree2 = tree match {
       case Bind(g, f, s) => Bind(g, from3, s)
-      case a => a
+      case a => from3
     }
 
     /*
