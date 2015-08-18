@@ -21,7 +21,7 @@ case class fourth(c: Int, d: IndexedSeq[Int])
 class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocument") {
 
   def x1 = field[Int]("primitiveFieldFirstLevel")
-  def secondDoc = doc[secoundLevelDocument](tags,tableName)
+  def secondDoc = doc[secoundLevelDocument](tags)
   def arrOfString = array(field[String]("y"))
   def * = (x1, secondDoc, arrOfString) <> (first.tupled, first.unapply)
 
@@ -31,15 +31,17 @@ class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocum
 class secoundLevelDocument(tag:Tag) extends SubDocument[second](tag,"secoundLevelDocument") {
   type previousDocument = firstLevelDocument
   def x2 = field[Int]("primitiveFieldSecundLevel")
-  def thirdDoc1 = doc[thirdLevelDocument1](tag,tableName)
-  def thirdDoc2 = doc[thirdLevelDocument2](tag,tableName)
+  def thirdDoc1 = doc[thirdLevelDocument1](tag)
+  def thirdDoc2 = doc[thirdLevelDocument2](tag)
   def * = (x2, thirdDoc1, thirdDoc2) <> (second.tupled, second.unapply)
 }
 
 class thirdLevelDocument1(tag:Tag) extends SubDocument[third1](tag,"thirdLevelDocument1") {
   type previousDocument = secoundLevelDocument
   def x3 = field[Int]("primitiveFieldThirdLevel")
-  def arrayOfFurthDoc = doc[fourthLevelDocument](tag,tableName)
+  def dyn = field[Int]("DynamicprimitiveFieldThirdLevel")
+  def docDyn = doc[noProjection](tag)
+  def arrayOfFurthDoc = doc[fourthLevelDocument](tag)
   def * = (x3, arrayOfFurthDoc) <> (third1.tupled, third1.unapply)
 }
 
@@ -59,7 +61,6 @@ class fourthLevelDocument(tag:Tag) extends SubDocument[fourth](tag,"fourthLevelD
 
 
 class additional1(tag:Tag) extends SubDocument[fourth](tag,"add1") {
-
   def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
   def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
   def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
@@ -67,11 +68,23 @@ class additional1(tag:Tag) extends SubDocument[fourth](tag,"add1") {
 
 
 class additional2(tag:Tag) extends SubDocument[fourth](tag,"add2") {
-
   def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
   def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
   def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
 }
+
+case class noProj(c: Int, s: Int)
+
+
+class noProjection(tag:Tag) extends SubDocument[noProj](tag,"noProjectionDocument") {
+
+  def x4 = field[Int]("noProjectionField1")
+  def next =doc[fourthLevelDocument](tag)
+  def arrOfInt =field[Int]("noProjectionField2")
+
+  def * = (x4, arrOfInt) <> (noProj.tupled, noProj.unapply)
+}
+
 
 
 class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures {
@@ -79,6 +92,7 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   implicit override val patienceConfig = PatienceConfig(timeout = Span(50, Seconds))
 
   val documentQuery = TableQuery[firstLevelDocument]
+
 
   before {
     db = Database.forURL("mongodb://localhost:27017/test") // MongoDB binds to 127.0.0.1  in travis
@@ -97,21 +111,21 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   test("two level field select ")
   {
    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result)).futureValue
-    //result
+  //  result
   }
 
 
   test("secoud level document select")
   {
-  lazy  val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc1.arrayOfFurthDoc).result)).futureValue
-    result
+  lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc1).result)).futureValue
+  // println( result.toString())
   }
 
 
   test("filter by nested field")
   {
-  lazy val result = ( db.run(documentQuery.filter(x =>( x.secondDoc.thirdDoc1.x3>7 && x.x1>166)).map(x => x.secondDoc.thirdDoc1).result)).futureValue
-    result
+  lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc2).result)).futureValue
+   // result
   }
 
 
@@ -119,8 +133,11 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   {
 
     val simpleInsert = DBIO.seq(documentQuery +=(first(5,second(1,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  )))
+
+
+ //   val next  = documentQuery.map(x =>  (x.secondDoc.thirdDoc1.docDyn.next, x.secondDoc.thirdDoc1.docDyn.x4)) +=(1,2)
   lazy val result =  (db.run(simpleInsert)).futureValue
-    result
+    //result
   }
 
 }
