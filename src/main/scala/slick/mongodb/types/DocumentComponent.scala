@@ -1,12 +1,10 @@
 package slick.mongodb.types
 
-import slick.ast.Type.Scope
 import slick.ast._
 import slick.lifted._
 import slick.mongodb.SubDocNode
 import slick.mongodb.lifted.MongoDriver
 import slick.profile.RelationalTableComponent
-import scala.collection.mutable.ListBuffer
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox.Context
 
@@ -16,7 +14,7 @@ import scala.reflect.macros.blackbox.Context
  */
 trait DocumentComponent extends RelationalTableComponent {
   driver: MongoDriver =>
-  class NewAnonSymbol extends AnonSymbol
+
   abstract class Document[A](_documentTag: Tag, _documentName: String)
     extends Table[A](_documentTag, _documentName) {
 
@@ -26,30 +24,30 @@ trait DocumentComponent extends RelationalTableComponent {
     /**
      * Method for creating an arrays of primitive types and documents
      * we create and array by passing as a parameter result of method field[T] or doc[T]
-     * good idea would be to unify arrays into field ex. field[IndexedSeq[Int]]("someName") orfield[IndexedSeq[SomeDocument]]("someName")
+     * good idea would be to unify arrays into field ex. field[IndexedSeq[Int]]("someName") or field[IndexedSeq[SomeDocument]]("someName")
      */
     def array[E, U](value: E)(implicit sh: Shape[_ <: FlatShapeLevel, E, U, E]): Query[E, U, IndexedSeq] = {
       val shaped = ShapedValue(value, sh).packedValue
       new WrappingQuery[E, U, IndexedSeq](shaped.toNode, shaped) //todo shaped.toNode should be wrapped in array node
     }
 
+    /**
+     *Collecting symbols from children of star projection. Each child can be of type Select, SubDocNode which is temporary node for representing nested documents and Ref
+     */
+    def collectSymbols(tag:Tag,sym:TermSymbol) = tag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match{
+      case Select(in,s) => s
+      case SubDocNode(t,n,s) => t
+      case Ref(s) =>s
+    })
+
     override def toNode = tableTag match {
       case _: BaseTag =>
-
-        val sym = new NewAnonSymbol
-
-        val collectSymbols = tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match{
-          case Select(in,s) => s
-          case SubDocNode(t,n) => t
-        })
-
-        // product node is changed during query compilation
-        TableExpansion(sym, tableNode, StructNode((collectSymbols zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq))
+        val sym = new AnonSymbol
+        TableExpansion(sym, tableNode, StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq))
       case t: RefTag => t.path
     }
 
-    //todo try to make it work
-   // def doc[D <: slick.mongodb.lifted.MongoDriver.api.Document[_]](t:Tag = tableTag, name:String= tableName)  = macro docMacroImpl.apply[D]
+
   }
 
   abstract class SubDocument[A](_documentTag: Tag, _documentName: String)
@@ -58,31 +56,16 @@ trait DocumentComponent extends RelationalTableComponent {
     override def toNode = tableTag match {
       case _: BaseTag => {
 
-
-
         val docNameSymbol = new FieldSymbol(_documentName)(Seq(), UnassignedType)
 
-        val collectSymbols = tableTag.taggedAs(Ref(docNameSymbol)).*.toNode.children(0).children.map(x => x match{
-          case Select(in,s) => s
-          case StructNode(ls) =>ls(0)._1// hack that works
-          case SubDocNode(t,n) => t
-          case p :Pure => new FieldSymbol("symbolkolekcji")(Seq(), UnassignedType)
-        })
-
-
+        /** I encoded Path for nested documents or fields in refTag. */
         val refine = tableTag.taggedAs(Ref(docNameSymbol))
         val symbols = Path.unapply(refine.tableTag.asInstanceOf[RefTag].path).get
 
         /** type of symbol in the end of list list decide if it will be nested Select or
-          *StructNode for building type in TableNode , Select for projection */
-         // todo I should put symbol not from this table but from next
-
-        val result = symbols match {
-          case l if l.last.isInstanceOf[NewAnonSymbol] => SubDocNode(docNameSymbol,StructNode(  (collectSymbols zip refine.*.toNode.children(0).children).toIndexedSeq))
-          case l if l.last.isInstanceOf[AnonSymbol] => Path(l)
-        }
-
-        result
+          *SubDocNode for building type in TableNode , Select for projection */
+        // todo find a way to remove SubDocNode completely now subDocNodes are removed in RemoveSubDocNodes phase and AddDynamics
+         SubDocNode(docNameSymbol,StructNode(  (collectSymbols(tableTag, docNameSymbol) zip refine.*.toNode.children(0).children).toIndexedSeq),Path(symbols))
       }
       case t: RefTag => t.path // when I will need that refTag
     }
@@ -117,28 +100,25 @@ trait DocumentComponent extends RelationalTableComponent {
   }
 
 }
-
-
-
 object doc {
 
   import slick.mongodb.lifted.MongoDriver.api._
 
   /** return a table row class using an arbitrary constructor function. */
 
-  def apply[D <: Document[_]](cons: Tag => D)(t: Tag, name: String): D = {  // not the best solution with that name because I pass name from table wher method document is called.Maybe I will figure it out.
+  def apply[D <: Document[_]](cons: Tag => D)(t: Tag): D = {  // not the best solution with that name because I pass name from table wher method document is called.Maybe I will figure it out.
 
     /** we take name and tag of document in which method doc is invoked we use it for building correct path */
-    //todo find solution that do not require tag and name
-    //todo find better way to extract symbols from tag
-    val extract: RefTag = t match {
+    //todo find better way to refTag symbols from tag
+    val refTag: RefTag = t match {
       case r: RefTag => r
       case b: BaseTag => {
+        val name = t.taggedAs(Ref(new AnonSymbol)).tableName
         t.taggedAs(Ref(new FieldSymbol(name)(Seq(), UnassignedType))).tableTag.asInstanceOf[RefTag]
-      }// extracting ref tag
+      }
     }
 
-    val getSymbols = Path.unapply(extract.path).get
+    val getSymbols = Path.unapply(refTag.path).get
     cons(new BaseTag {
       base: BaseTag =>
       def taggedAs(path: Node): Document[_] = cons(new RefTag(Path(Path.unapply(path).get ::: getSymbols)) {
@@ -150,14 +130,14 @@ object doc {
   }
 
   /** return a table row class which has a constructor of type (Tag). */
-  def apply[D <: Document[_]](t: Tag, name: String): D = macro docMacroImpl.apply[D]
+  def apply[D <: Document[_]](t: Tag): D = macro docMacroImpl.apply[D]
 }
 
 object docMacroImpl {
 
   import slick.mongodb.lifted.MongoDriver.api._
 
-  def apply[D <: Document[_]](c: Context)(t: c.Expr[Tag], name: c.Expr[String])(implicit e: c.WeakTypeTag[D]): c.Expr[D] = {
+  def apply[D <: Document[_]](c: Context)(t: c.Expr[Tag])(implicit e: c.WeakTypeTag[D]): c.Expr[D] = {
     import c.universe._
     val cons = c.Expr[Tag => D](Function(
       List(ValDef(Modifiers(Flag.PARAM), newTermName("tag"), Ident(typeOf[Tag].typeSymbol), EmptyTree)),
@@ -167,7 +147,7 @@ object docMacroImpl {
       )
     ))
     reify {
-      doc.apply[D](cons.splice)(t.splice, name.splice)
+      doc.apply[D](cons.splice)(t.splice)
     }
   }
 }
