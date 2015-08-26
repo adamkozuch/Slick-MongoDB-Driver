@@ -10,6 +10,11 @@ import slick.mongodb.direct.MongoBackend
 /**
  * Created by adam on 20.08.15.
  */
+
+
+/**
+ * Class extracted from LiftedMongoInvoker
+ */
 class CreateQuery {
 import slick.mongodb.lifted.CreateQuery._
 
@@ -18,8 +23,6 @@ import slick.mongodb.lifted.CreateQuery._
      val q = fs.foldLeft(new MongoDBObject) ((dbObject,node) => appendQueryParameterFromNode(node,dbObject))
     Some(q)
   }
-
-  //Is that only a query or also projection. Where projection is done.
 
   def appendQueryParameterFromNode(node: Node,query: MongoDBObject): MongoDBObject =  node match {
     case Apply(Library.And,arguments) =>

@@ -8,7 +8,11 @@ import slick.mongodb.MongoQueryNode
 /**
  * Created by adam on 20.08.15.
  */
+
+
 class CreateProjection {
+
+  /** Class extracts parameters for projection*/
   def createProjection(tree:Node): Option[MongoDBObject] = tree match {
     case MongoQueryNode(_,f,Pure(s,_),_,_,_,_)  =>
 
