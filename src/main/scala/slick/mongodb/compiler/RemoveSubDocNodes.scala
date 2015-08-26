@@ -22,13 +22,6 @@ def apply(state: CompilerState) = state.map { n => ClientSideOp.mapServerSide(n)
 
   val tableExpansion = tree.collect({case t:TableExpansion =>t })(0).replace({case SubDocNode(s,n,p,m) =>n}, bottomUp = true)
   val tree2 = tree.replace({case t:TableExpansion => tableExpansion})
-
-
-
-
-
-
-
   tree2
 
 }}}
