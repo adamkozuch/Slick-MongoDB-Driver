@@ -1,20 +1,27 @@
 package slick.mongodb.lifted
 
+import com.mongodb.casbah.Imports._
+import com.mongodb.casbah.MongoCollection
+import com.mongodb.casbah.commons.MongoDBObject
 import slick.SlickException
+import slick.ast.Type.Structural
 import slick.ast.TypeUtil.:@
 import slick.ast._
 
 import slick.dbio.{Streaming, SynchronousDatabaseAction, Effect, NoStream}
 import slick.jdbc.JdbcBackend
 
-import slick.mongodb.MongoInvoker
-import slick.mongodb.direct.{TypedMongoCursor, MongoBackend}
+import slick.mongodb.{MongoQueryNode, MongoInvoker}
+import slick.mongodb.direct.{GetResult, TypedMongoCollection, TypedMongoCursor, MongoBackend}
 import slick.profile.{FixedSqlAction, FixedBasicAction, FixedBasicStreamingAction, RelationalActionComponent}
 
 import slick.util._
 
 import scala.collection.mutable.Builder
 import scala.util.control.NonFatal
+
+import Util._
+
 
 /**
  * Created by adam on 27.05.15.
@@ -35,20 +42,28 @@ trait MongoActionComponent extends RelationalActionComponent {
   class QueryActionExtensionMethodsImpl[R, S <: NoStream](tree: Node, param: Any) extends super.QueryActionExtensionMethodsImpl[R, S] {
     def result: DriverAction[R, S, Effect.Read] = {
       (tree match {
-        /* todo how to deal with pattern matching
-        in JDBC implementation I found line  (rsm @ ResultSetMapping(_, compiled, CompiledMapping(_, elemType))) :@ (ct: CollectionType)
-        for Streaming and First(rsm @ ResultSetMapping(_, compiled, _)) for simple action
-         */
-        case (rsm @ ResultSetMapping(_, compiled, _)) :@ (ct: CollectionType) =>
-      new MongoStreamingInvokerAction[R, Any, Effect] {
+        case (mq : MongoQueryNode) :@ (ct: CollectionType) =>
+           new MongoStreamingInvokerAction[R, Any, Effect] {
             streamingAction =>
             def run(ctx: MongoBackend#Context): R = {
-              val invoker = createInvoker(ctx.session)
-              val b = ct.cons.createBuilder(ct.elementType.classTag).asInstanceOf[Builder[Any, R]]
-              invoker.foreach(x => b += x)(ctx.session)
+
+
+              val q = new CreateQuery
+              val p = new CreateProjection
+              val  query = q.mongoQuery(mq)
+              val projection = p.createProjection(mq)
+
+              val conv  = new Converter[R](ct)
+
+              val name  = mq.collect({case t:TableNode => t})(0).tableName
+              val coll = new TypedMongoCollection[R](name)(ctx.session,conv.converter)
+              val coursor =  coll.find(query.get,projection.get)
+              
+              val b = ct.cons.createBuilder(ct.elementType.classTag).asInstanceOf[Builder[R, R]]
+              coursor.foreach(x => b += x)
               b.result()
             }
-        override def createInvoker(session: MongoBackend#Session) = LiftedMongoInvoker[R](rsm)(session)
+        override def createInvoker(session: MongoBackend#Session):LiftedMongoInvoker[R] = ??? //LiftedMongoInvoker[R](rsm)(session)
       }
         case First(rsm @ ResultSetMapping(_, compiled, _)) =>
           new SimpleDriverAction[R]("result") {
@@ -106,7 +121,7 @@ trait MongoActionComponent extends RelationalActionComponent {
   def createSchemaActionExtensionMethods(schema: SchemaDescription): SchemaActionExtensionMethods =
     ???
 
-  //todo make ita class
+  //todo make it a class
   trait MongoStreamingInvokerAction[R, T, -E <: Effect] extends SynchronousDatabaseAction[R, Streaming[T], MongoBackend, E] with FixedBasicStreamingAction[R, T, E] {
     def createInvoker(session: MongoBackend#Session): MongoInvoker[R]
 

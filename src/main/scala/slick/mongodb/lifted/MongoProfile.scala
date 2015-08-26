@@ -1,20 +1,19 @@
 package slick.mongodb.lifted
 
-import slick.mongodb.compiler.{RemoveSubDocNodes, ExpandDocument}
+import slick.mongodb.compiler._
 import slick.mongodb.types.DocumentComponent
 
 
 import scala.language.{higherKinds, implicitConversions}
 import slick.ast._
-import slick.compiler.{CompilerState, Phase, QueryCompiler}
+import slick.compiler.QueryCompiler
 import slick.lifted.{QueryBase, RepShape, Query}
-import slick.mongodb.direct.{GetResult, MongoQuery, MongoBackend}
-import slick.profile.{FixedBasicStreamingAction, FixedBasicAction, RelationalDriver, RelationalProfile}
+import slick.mongodb.direct.MongoBackend
+import slick.profile.{ RelationalDriver, RelationalProfile}
 
 // TODO: split into traits?
 trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent with MongoTypesComponent with MongoActionComponent with DocumentComponent with RelationalDriver
 { driver: MongoDriver =>
-
   type Backend = MongoBackend
   val backend = MongoBackend
   override val Implicit: Implicits = simple
@@ -23,8 +22,7 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
   override val profile =this
 
   protected trait CommonImplicits extends super.CommonImplicits with ImplicitColumnTypes
-//  trait Implicits extends super.Implicits with CommonImplicits
-//  trait SimpleQL extends super.SimpleQL with Implicits
+
   trait API extends super.API with CommonImplicits
 {
   type Document[T] = driver.Document[T]
@@ -37,20 +35,19 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
 
   trait SimpleQL extends super.SimpleQL with Implicits
 
-
   // TODO: extend for complicated node structure, probably mongodb nodes should be used
   /** (Partially) compile an AST for insert operations */
-  override def compileInsert(n: Node): CompiledInsert = n
+  override def compileInsert(n: Node): CompiledInsert = insertCompiler.run(n).tree // todo insert should be compiled by RemoveSubDocNodes
 
 
   /** The compiler used for queries */
-  override def queryCompiler: QueryCompiler = new QueryCompiler(Vector(new RemoveSubDocNodes,Phase.assignUniqueSymbols, new ExpandDocument, Phase.verifySymbols,Phase.verifyTypes, Phase.verifyTypesServerSide, Phase.expandSums))
+  override def queryCompiler: QueryCompiler =MongoQueryCompiler.standard
   /** The compiler used for updates */
   override def updateCompiler: QueryCompiler = ???
   /** The compiler used for deleting data */
   override def deleteCompiler: QueryCompiler = ???
   /** The compiler used for inserting data */
-  override def insertCompiler: QueryCompiler = ???
+  override def insertCompiler: QueryCompiler = new QueryCompiler(Vector(MongoQueryCompiler.MongoPhase.removeSubDocnodes))
 
   trait ImplicitColumnTypes extends super.ImplicitColumnTypes{
     override implicit def charColumnType: BaseColumnType[Char] = ScalaBaseType.charType
@@ -84,7 +81,6 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
   override type SchemaDescription = SchemaDescriptionDef
   override def buildSequenceSchemaDescription(seq: Sequence[_]): SchemaDescription = ???
   override def buildTableSchemaDescription(table: Table[_]): SchemaDescription = ???
-
 }
 
 // TODO: make it a class?
