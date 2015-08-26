@@ -7,9 +7,7 @@ import slick.compiler.{Phase, QueryCompiler}
  */
 object MongoQueryCompiler {
 
-
-
-  val phases = Vector(MongoPhase.removeSubDocnodes ,Phase.assignUniqueSymbols,MongoPhase.rebuildColumns,MongoPhase.expandDocument, Phase.verifySymbols,Phase.verifyTypes, Phase.verifyTypesServerSide, MongoPhase.mergeToMongoQueryNode)
+  val phases = Vector(new NextPhase ,MongoPhase.removeSubDocnodes,Phase.assignUniqueSymbols,MongoPhase.rebuildColumns,MongoPhase.expandDocument, Phase.verifySymbols,Phase.verifyTypes, MongoPhase.mergeToMongoQueryNode, MongoPhase.lastPhase)
 
   val standard = new QueryCompiler(phases)
 
@@ -18,6 +16,7 @@ object MongoQueryCompiler {
     val removeSubDocnodes = new RemoveSubDocNodes
     val rebuildColumns = new AddDynamics
     val expandDocument = new ExpandDocument
-    val mergeToMongoQueryNode = new mergeToMongoQueryNode
+    val mergeToMongoQueryNode = new MergeToMongoQueryNode
+    val lastPhase = new LastPhase
   }
 }

@@ -50,6 +50,45 @@ class ExpandDocument extends Phase {
 
     tree3
 
+
+    def hoist(tree: Node): Node = {
+      logger.debug("Hoisting in:", tree)
+      val defs = tree.collectAll[(TermSymbol, Option[(Node, (Node => Node))])] { case StructNode(ch) =>
+        ch.map { case (s, n) =>
+          val u = unwrap(n)
+          logger.debug("Unwrapped "+n+" to "+u)
+          if(u._1 eq n) (s, None) else (s, Some(u))
+        }
+      }.collect { case (s, Some(u)) => (s, u) }.toMap
+      logger.debug("Unwrappable defs: "+defs)
+
+      if(defs.isEmpty) tree else {
+        lazy val tr: PartialFunction[Node, Node] =  {
+          case p @ Path(h :: _) if defs.contains(h) =>
+            val (_, wrap) = defs(h)
+            wrap(p)
+          case d: DefNode => d.mapScopedChildren {
+            case (Some(sym), n) if defs.contains(sym) =>
+              unwrap(n)._1.replace(tr)
+            case (_, n) => n.replace(tr)
+          }
+        }
+        tree.replace(tr)
+      }
+    }
+
+    def unwrap(n: Node): (Node, (Node => Node)) = n match {
+      case GetOrElse(ch, default) :@ tpe =>
+        val (recCh, recTr) = unwrap(ch)
+        (recCh, { sym => GetOrElse(recTr(sym), default) :@ tpe })
+      case OptionApply(ch) :@ tpe =>
+        val (recCh, recTr) = unwrap(ch)
+        (recCh, { sym => OptionApply(recTr(sym)) :@ tpe })
+      case n => (n, identity)
+    }
+val t =  hoist(tree3)
+    t
+
   }
 
 

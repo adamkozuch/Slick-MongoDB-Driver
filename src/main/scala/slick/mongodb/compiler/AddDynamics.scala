@@ -19,13 +19,14 @@ class AddDynamics extends Phase {
 
   def apply(state: CompilerState) = state.map { n => ClientSideOp.mapServerSide(n) { tree =>
 
+    //todo simplify these methods
     /** Make new Select part of TableExpansion columns */
-    def addSelect(n: Node, selectPath: List[TermSymbol], nodeToAdd: Node): Node = n match {
+    def addSelect(subTree: Node, selectPath: List[TermSymbol], newNode: Node): Node = subTree match {
         case sn: StructNode => {
-          val count = for (i <- sn.elements if (i._1 == selectPath.head)) yield i
-          if (count.isEmpty) sn.copy(elements = sn.elements :+ addElement(selectPath, nodeToAdd))
+          val count = for (i <- sn.elements if (i._1 == selectPath.head)) yield i   // todo change that line
+          if (count.isEmpty) sn.copy(elements = sn.elements :+ addElement(selectPath, newNode))
            else
-            StructNode(sn.elements.map { case (t, n) => if (t == selectPath.head) (t, addSelect(n, selectPath.tail, nodeToAdd)) else (t, n) })
+            StructNode(sn.elements.map { case (t, n) => if (t == selectPath.head) (t, addSelect(n, selectPath.tail, newNode)) else (t, n) })
         }
         case s: Select => s
       }
@@ -45,36 +46,38 @@ class AddDynamics extends Phase {
       }
     }
 
-
-    //todo find cleaner way to searching for selects that are no in projection and are called dynamically
-    //collect all selects from tree
-    val selectsFromTree = tree.collect({ case s: Select if s.nodeType.isInstanceOf[ScalaBaseType[_]] => s }).toSet
+    //For now I assume that will be one TableExpansion
     val tableExpansion = tree.collect({ case t: TableExpansion => t })(0)
-    val selectsFromTableExpansion = tableExpansion.collect({ case s: Select if s.nodeType.isInstanceOf[ScalaBaseType[_]] => s }).toSet
-
+    //todo find cleaner way to searching for selects that are no in projection andare called dynamically
 
     //remove reference symbol. We looking for Selects that are same so I remove reference symbol and check if Selects have same path and type
-    val starProjectionSelects = selectsFromTableExpansion.map(t => Path(FwdPath.unapply(t).get.tail) :@ t.nodeType).toSet
-    val dynSelec = selectsFromTree.map(t => Path(FwdPath.unapply(t).get.tail) :@ t.nodeType).toSet
+    val treePrimitivesWithoutRef = {
+     val primitives =  tree.collect({ case s: Select if s.nodeType.isInstanceOf[ScalaBaseType[_]] => s }).toSet
+      primitives.map(t => Path(FwdPath.unapply(t).get.tail) :@ t.nodeType)
+    }
 
-    val dynamicSelects = (dynSelec -- starProjectionSelects).toSeq
+    val tePrimitivesWithoutRef = {
+     val primitives = tableExpansion.collect({ case s: Select if s.nodeType.isInstanceOf[ScalaBaseType[_]] => s }).toSet
+          primitives.map(t => Path(FwdPath.unapply(t).get.tail) :@ t.nodeType)
+    }
+    //If it isn't empty columns in TableExpansion will be changed
+    val dynamicSelects = (treePrimitivesWithoutRef -- tePrimitivesWithoutRef).toSeq
 
+    val tree3 = tree.replace({ case TableExpansion(g, t, c) =>{
 
-
-    val columns = if(dynamicSelects.nonEmpty) addNodes(tableExpansion.columns, dynamicSelects.toList) else tableExpansion.columns
-
-    val tree3 = tree.replace({ case TableExpansion(g, t, c) => TableExpansion(g, t, columns) })
+      val columns = {
+        if(dynamicSelects.isEmpty) c
+        else
+          addNodes(tableExpansion.columns, dynamicSelects.toList)
+      }
+      TableExpansion(g,t,columns)
+    }  })
+   val projections =  tree3.collect({case t:Bind =>t.select })(0).replace({ case SubDocNode(s, n, p,ss) => ss }, bottomUp = true).infer()
 
 
     /** In the end I completely remove SubDocNode and keep only Select from it.  */
-    val tree4 = tree3.replace({ case SubDocNode(s, n, p) => p }, bottomUp = true)
-
-
-    tree4
+     tree3.replace({ case SubDocNode(s, n, p,ss) => p }, bottomUp = true)
   }
-
   }
-
-
 }
 

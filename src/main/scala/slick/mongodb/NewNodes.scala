@@ -10,17 +10,17 @@ import Util._
  * Created by adam on 06.08.15.
  */
 
-/** Node created for representing SubDocumets in AST.
-  * It is removed by RemoveSubDocNOdes phase and made a child of StructNode
+/** Node created for representing SubDocuments in AST.
+  * It is removed by RemoveSubDocNodes phase and made a child of StructNode
   */
-case class SubDocNode(termSymbol: TermSymbol, node: Node, select:Node) extends Node {
+case class SubDocNode(termSymbol: TermSymbol, structNode: Node, select:Node,mapping:Node) extends Node {
   type Self = SubDocNode
   protected def buildType = ???
-  def children = Seq(node,select)
-  protected[this] def rebuild(ch: IndexedSeq[Node]) = SubDocNode(termSymbol,ch(0),ch(1))
+  def children = Seq(structNode,select, mapping)
+  protected[this] def rebuild(ch: IndexedSeq[Node]) = SubDocNode(termSymbol,ch(0),ch(1),ch(2))
   protected[this] def withInferredType(scope: Scope, typeChildren: Boolean, retype: Boolean):Self = {
-    val n2 = node.infer(scope,typeChildren, retype)
-    SubDocNode(termSymbol, node,select) :@ n2.nodeType
+    val n2 = mapping.infer(scope,typeChildren, retype)
+    SubDocNode(termSymbol, structNode,select,mapping) :@ n2.nodeType
   }
 }
 

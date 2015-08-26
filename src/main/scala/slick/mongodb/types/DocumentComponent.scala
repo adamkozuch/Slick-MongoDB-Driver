@@ -15,6 +15,7 @@ import scala.reflect.macros.blackbox.Context
 trait DocumentComponent extends RelationalTableComponent {
   driver: MongoDriver =>
 
+  case class Id(id:String)
   abstract class Document[A](_documentTag: Tag, _documentName: String)
     extends Table[A](_documentTag, _documentName) {
 
@@ -36,14 +37,14 @@ trait DocumentComponent extends RelationalTableComponent {
      */
     def collectSymbols(tag:Tag,sym:TermSymbol) = tag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match{
       case Select(in,s) => s
-      case SubDocNode(t,n,s) => t
+      case SubDocNode(t,n,s,tm) => t
       case Ref(s) =>s
     })
 
     override def toNode = tableTag match {
       case _: BaseTag =>
         val sym = new AnonSymbol
-        TableExpansion(sym, tableNode, StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq))
+        TableExpansion(sym, tableNode, SubDocNode(sym,StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq),Ref(sym),tableTag.taggedAs(Ref(sym)).*.toNode))
       case t: RefTag => t.path
     }
 
@@ -65,7 +66,7 @@ trait DocumentComponent extends RelationalTableComponent {
         /** type of symbol in the end of list list decide if it will be nested Select or
           *SubDocNode for building type in TableNode , Select for projection */
         // todo find a way to remove SubDocNode completely now subDocNodes are removed in RemoveSubDocNodes phase and AddDynamics
-         SubDocNode(docNameSymbol,StructNode(  (collectSymbols(tableTag, docNameSymbol) zip refine.*.toNode.children(0).children).toIndexedSeq),Path(symbols))
+         SubDocNode(docNameSymbol,StructNode(  (collectSymbols(tableTag, docNameSymbol) zip refine.*.toNode.children(0).children).toIndexedSeq),Path(symbols),refine.*.toNode )
       }
       case t: RefTag => t.path // when I will need that refTag
     }
