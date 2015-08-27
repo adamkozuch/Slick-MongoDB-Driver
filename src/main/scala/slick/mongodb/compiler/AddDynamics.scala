@@ -48,16 +48,15 @@ class AddDynamics extends Phase {
 
     //For now I assume that will be one TableExpansion
     val tableExpansion = tree.collect({ case t: TableExpansion => t })(0)
-    //todo find cleaner way to searching for selects that are no in projection andare called dynamically
 
     //remove reference symbol. We looking for Selects that are same so I remove reference symbol and check if Selects have same path and type
     val treePrimitivesWithoutRef = {
-     val primitives =  tree.collect({ case s: Select if s.nodeType.isInstanceOf[ScalaBaseType[_]] => s }).toSet
+     val primitives =  tree.collect({case (s: Select) :@ (_: ScalaBaseType[_]) => s }).toSet
       primitives.map(t => Path(FwdPath.unapply(t).get.tail) :@ t.nodeType)
     }
 
     val tePrimitivesWithoutRef = {
-     val primitives = tableExpansion.collect({ case s: Select if s.nodeType.isInstanceOf[ScalaBaseType[_]] => s }).toSet
+     val primitives = tableExpansion.collect({case (s: Select) :@ (_: ScalaBaseType[_])  => s }).toSet
           primitives.map(t => Path(FwdPath.unapply(t).get.tail) :@ t.nodeType)
     }
     //If it isn't empty columns in TableExpansion will be changed
@@ -72,8 +71,6 @@ class AddDynamics extends Phase {
       }
       TableExpansion(g,t,columns)
     }  })
-   val projections =  tree3.collect({case t:Bind =>t.select })(0).replace({ case SubDocNode(s, n, p,ss) => ss }, bottomUp = true).infer()
-
 
     /** In the end I completely remove SubDocNode and keep only Select from it.  */
      tree3.replace({ case SubDocNode(s, n, p,ss) => p }, bottomUp = true)
