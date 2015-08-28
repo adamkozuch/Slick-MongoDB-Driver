@@ -17,7 +17,8 @@ class MergeToMongoQueryNode extends Phase {
 
     //todo think about better solution
     val from = tree.collect({case t:TableNode =>t})(0)
-    val select = tree.collect({case Bind(g,t,p:Pure) =>p})(0)
+    val select = tree.collect({case Bind(g,t,p:Pure) =>p})
+    val se1 = if(select.nonEmpty)select(0) else from // todo what if I don't map over the result?For now just return from. Think about it.
     val filter = tree.collect({case Filter(g,f,w) => w})
     val f1 =if(filter.nonEmpty) Option(filter(0)) else None
 
@@ -25,5 +26,5 @@ class MergeToMongoQueryNode extends Phase {
     val s1 = if(sort.isEmpty) Seq.empty else sort(0)
 
 
-      MongoQueryNode(new AnonSymbol, from, select,f1,s1).infer(typeChildren = true)    :@ state.get(new TakeMapping).get
+      MongoQueryNode(new AnonSymbol, from, se1,f1,s1).infer(typeChildren = true)    :@ state.get(new TakeMapping).get
 }}}
