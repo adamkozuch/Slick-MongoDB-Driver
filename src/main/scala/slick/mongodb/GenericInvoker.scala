@@ -1,6 +1,5 @@
 package slick
 
-
 import scala.language.higherKinds
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.immutable.Map

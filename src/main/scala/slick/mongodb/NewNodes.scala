@@ -65,12 +65,12 @@ case class MongoQueryNode(sym:TermSymbol,from:Node ,select:Node ,filter:Option[N
     val newLimit = ch.slice(limitOffset,limitOffset+ limit.productArity)
 
     copy(
-    from = newFrom,
-    select = newSelect,
-    filter = newFilter.headOption,
-    sort = (sort, newSort).zipped.map { case ((_, o), n) => (n, o) },
-    skip = newSkip.headOption,
-    limit = newLimit.headOption
+      from = newFrom,
+      select = newSelect,
+      filter = newFilter.headOption,
+      sort = (sort, newSort).zipped.map { case ((_, o), n) => (n, o) },
+      skip = newSkip.headOption,
+      limit = newLimit.headOption
     )
   }
 
@@ -102,7 +102,7 @@ case class MongoQueryNode(sym:TermSymbol,from:Node ,select:Node ,filter:Option[N
         skip = sk2.map(_.headOption).getOrElse(skip)) :@ newType
     }
   }
-  }
+}
 
 
 

@@ -111,21 +111,21 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   test("two level field select ")
   {
    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result)).futureValue
-  //  result
+   result
   }
 
 
   test("secoud level document select")
   {
   lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc1).result)).futureValue
-  // println( result.toString())
+  println( result.toString())
   }
 
 
   test("filter by nested field")
   {
   lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc2).result)).futureValue
-   // result
+  result
   }
 
 

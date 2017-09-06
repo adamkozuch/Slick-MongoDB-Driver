@@ -53,10 +53,10 @@ trait MongoActionComponent extends RelationalActionComponent {
               val  query = q.mongoQuery(mq)
               val projection = p.createProjection(mq)
 
-              val conv  = new Converter[R](ct)
+              val converter  = new Converter[R](ct)
 
               val name  = mq.collect({case t:TableNode => t})(0).tableName
-              val coll = new TypedMongoCollection[R](name)(ctx.session,conv.converter)
+              val coll = new TypedMongoCollection[R](name)(ctx.session, converter.converter)
               val coursor =  coll.find(query.get,projection.get)
               
               val b = ct.cons.createBuilder(ct.elementType.classTag).asInstanceOf[Builder[R, R]]
@@ -185,8 +185,3 @@ trait MongoActionComponent extends RelationalActionComponent {
   }
 
 }
-
-
-
-
-

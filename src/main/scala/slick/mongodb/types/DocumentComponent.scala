@@ -35,16 +35,23 @@ trait DocumentComponent extends RelationalTableComponent {
     /**
      *Collecting symbols from children of star projection. Each child can be of type Select, SubDocNode which is temporary node for representing nested documents and Ref
      */
-    def collectSymbols(tag:Tag,sym:TermSymbol) = tag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match{
+    def collectSymbols(tag:Tag,sym:TermSymbol) = tag.taggedAs(Ref(sym)).*.toNode.children(0).children.map(x => x match {
       case Select(in,s) => s
       case SubDocNode(t,n,s,tm) => t
       case Ref(s) =>s
     })
 
+    //TODO this looks ugly. Refactor
     override def toNode = tableTag match {
       case _: BaseTag =>
         val sym = new AnonSymbol
-        TableExpansion(sym, tableNode, SubDocNode(sym,StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq),Ref(sym),tableTag.taggedAs(Ref(sym)).*.toNode))
+        TableExpansion(
+          sym,
+          tableNode,
+          SubDocNode(sym,
+            StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq),
+            Ref(sym),
+            tableTag.taggedAs(Ref(sym)).*.toNode))
       case t: RefTag => t.path
     }
 
@@ -122,10 +129,11 @@ object doc {
     val getSymbols = Path.unapply(refTag.path).get
     cons(new BaseTag {
       base: BaseTag =>
-      def taggedAs(path: Node): Document[_] = cons(new RefTag(Path(Path.unapply(path).get ::: getSymbols)) {
-        def taggedAs(path: Node) = {
-          base.taggedAs(path)
-        }
+      def taggedAs(path: Node): Document[_] = cons(
+        new RefTag(Path(Path.unapply(path).get ::: getSymbols)) {
+          def taggedAs(path: Node) = {
+            base.taggedAs(path)
+          }
       })
     })
   }
@@ -133,7 +141,7 @@ object doc {
   /** return a table row class which has a constructor of type (Tag). */
   def apply[D <: Document[_]](t: Tag): D = macro docMacroImpl.apply[D]
 }
-
+//TODO next time understand macro
 object docMacroImpl {
 
   import slick.mongodb.lifted.MongoDriver.api._
@@ -152,16 +160,3 @@ object docMacroImpl {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
