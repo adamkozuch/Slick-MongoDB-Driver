@@ -49,13 +49,11 @@ trait DocumentComponent extends RelationalTableComponent {
           sym,
           tableNode,
           SubDocNode(sym,
-            StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children ).toIndexedSeq),
+            StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children).toIndexedSeq),
             Ref(sym),
             tableTag.taggedAs(Ref(sym)).*.toNode))
       case t: RefTag => t.path
     }
-
-
   }
 
   abstract class SubDocument[A](_documentTag: Tag, _documentName: String)
@@ -100,16 +98,13 @@ trait DocumentComponent extends RelationalTableComponent {
       }
     }
   }
-
-
   object Document {
     implicit final def documentShape[Level >: FlatShapeLevel <: ShapeLevel, T, C <: Document[_]](implicit ev: C <:< Document[T]) = RepShape[Level, C, T]
-
   }
-
 }
 object doc {
 
+  abstract class NewTerm
   import slick.mongodb.lifted.MongoDriver.api._
 
   /** return a table row class using an arbitrary constructor function. */
@@ -141,7 +136,6 @@ object doc {
   /** return a table row class which has a constructor of type (Tag). */
   def apply[D <: Document[_]](t: Tag): D = macro docMacroImpl.apply[D]
 }
-//TODO next time understand macro
 object docMacroImpl {
 
   import slick.mongodb.lifted.MongoDriver.api._

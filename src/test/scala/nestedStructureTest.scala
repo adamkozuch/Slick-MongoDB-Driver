@@ -9,12 +9,11 @@ import slick.mongodb.types.doc
 /**
  * Created by adam on 10.07.15.
  */
-
-case class first(x: Int, secondLevel: second, y: IndexedSeq[String])
-case class second(c: Int, thirdLevel: third1, thirdLevel2:third2)
-case class third1(c: Int, fourthLevel: fourth)
-case class third2(c: Double, s: String)
-case class fourth(c: Int, d: IndexedSeq[Int])
+case class first(x: Int, secondLevel: second, y: IndexedSeq[String]) extends doc.NewTerm
+case class second(c: Int, thirdLevel: third1, thirdLevel2:third2) extends doc.NewTerm
+case class third1(c: Int, fourthLevel: fourth) extends doc.NewTerm
+case class third2(c: Double, s: String) extends doc.NewTerm
+case class fourth(c: Int, d: IndexedSeq[Int]) extends doc.NewTerm
 
 
 
@@ -104,40 +103,39 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   test("third level document select")
   {
   lazy val result =  (db.run(documentQuery.map(x => x.secondDoc.thirdDoc1).result)).futureValue
-   // result
+    //result
   }
 
 
   test("two level field select ")
   {
-   lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result)).futureValue
-   result
+    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result)).futureValue
+    println("What kind of result " + result)
   }
 
-
-  test("secoud level document select")
+  test("second level document select")
   {
-  lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc1).result)).futureValue
-  println( result.toString())
+    lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc1).result)).futureValue
+    //println("This is the result" + result.toString())
   }
 
 
   test("filter by nested field")
   {
-  lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc2).result)).futureValue
-  result
+    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc2).result)).futureValue
+    //println("This is result2" + result)
   }
 
 
   test("nested insert")
   {
-
-    val simpleInsert = DBIO.seq(documentQuery +=(first(5,second(1,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  )))
-
-
- //   val next  = documentQuery.map(x =>  (x.secondDoc.thirdDoc1.docDyn.next, x.secondDoc.thirdDoc1.docDyn.x4)) +=(1,2)
-  lazy val result =  (db.run(simpleInsert)).futureValue
-    //result
+    val simpleInsert = DBIO.seq(documentQuery ++=
+      List(
+        first(5,second(1,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  ),
+        first(9,second(77,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  )
+      ))
+    lazy val result =  (db.run(simpleInsert)).futureValue
+    result
   }
 
 }

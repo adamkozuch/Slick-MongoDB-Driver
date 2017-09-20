@@ -16,9 +16,26 @@ trait GenericLiftedMongoInvoker[T]  {
   /** Used to retrieve attribute names from the query node */
   protected def attributeNames = attributes  //without type
 
+  def expand(n:Node):List[String] = n match {
+    case t:StructNode  => {
+      val s :List[String]= t.elements.flatMap(x =>  x._2 match {
+        case d:StructNode =>  List(x._1.name) ++ expand(d)
+        case p:ProductNode => p.children.map(_.asInstanceOf[Select].field.name).toList
+        case sel:Select => List(sel.field.name)
+      }
+      ).toList
+      println("Our array : "  + s.toString())
+      s
+    }
+    case pn:ProductNode  =>  pn.children.map(_.asInstanceOf[Select].field.name).toList
+    case d:Select => List(d.field.name)
+  }
   /** Used to retrieve attribute names and their types from the query node*/
-  protected def attributes[String] = queryNode match {  // todo for now result without a type
-    case TableExpansion(_,_,pn: ProductNode) => pn.children.map(_.asInstanceOf[Select].field.name)  //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children  // todo build type is now protected resolve problem
+  protected def attributes[String] = queryNode match {  // todo for now result without a typ
+    case TableExpansion(_,_,s:StructNode) =>  expand(s)
+
+    //s.elements.toList.productIterator //s.children.map( x => x.)
+    case TableExpansion(_,_,pn: ProductNode) => pn.children.map(_.asInstanceOf[Select].field.name).toIndexedSeq  //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children  // todo build type is now protected resolve problem
    // case ResultSetMapping(_,Comprehension(_,_,_,_,Some(Pure(pn:ProductNode,_)),_,_),_) => pn.children.map(_.asInstanceOf[Select].field.name) //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children
     case TableExpansion(_,_,TypeMapping(ch,_,_)) =>  ch.children.map(_.asInstanceOf[Select].field.name)
   }
@@ -27,7 +44,8 @@ trait GenericLiftedMongoInvoker[T]  {
   val converter: GetResult[Product] =
   // TODO: add support for arbitrary type, non-tuple (single attribute)
     GetResult[Product](r => {
-      GenericLiftedMongoInvoker.seqToTuple(attributeNames.map(r.get(_).get))
+      val merged = IndexedSeq("Adam", "Wojtek", "Krzysiek") //attributeNames.map(x => x)     //r.get(_).get)
+      GenericLiftedMongoInvoker.seqToTuple(merged)
     })
 
   // TODO: update in order to support client-side joins

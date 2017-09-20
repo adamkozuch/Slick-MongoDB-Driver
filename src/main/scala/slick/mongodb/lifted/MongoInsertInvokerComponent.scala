@@ -7,6 +7,7 @@ import scala.annotation.implicitNotFound
 import scala.language.implicitConversions
 import slick.ast._
 import slick.profile.BasicInsertInvokerComponent
+import slick.mongodb.types.doc
 
 trait MongoInsertInvokerComponent extends BasicInsertInvokerComponent{ driver: MongoDriver =>
   override type InsertInvoker[T] = InsertInvokerDef[T]
@@ -24,8 +25,32 @@ trait MongoInsertInvokerComponent extends BasicInsertInvokerComponent{ driver: M
 
     /** Used to convert specified type to DBObject */
     val binder: Product => MongoDBObject = { p: Product =>
-      val pairs: List[(String, Any)] = (attributeNames.iterator zip p.productIterator).toList
-      MongoDBObject(pairs)
+      var coll = scala.collection.mutable.ArrayBuffer(attributeNames)
+      var counter = 0;
+
+      def joinAttributes(a:doc.NewTerm):List[Any] = a.asInstanceOf[Product].productIterator.toList.map(
+        x => x match {
+          case x:doc.NewTerm => {
+            var s = coll(0)(counter)
+            counter = counter + 1
+            s -> MongoDBObject(joinAttributes(x).asInstanceOf[List[(String, Any)]])
+          }
+          case v:Vector[_] => { // check if only primitive arrays
+            var s = coll(0)(counter)
+            counter = counter + 1
+            (s, v)
+          }
+          case y:Any => {
+            var s = coll(0)(counter)
+            counter = counter + 1
+            (s, y)
+          }
+        }
+      )
+
+      val valuesWithAttribues = joinAttributes(p.asInstanceOf[doc.NewTerm])
+
+      MongoDBObject(valuesWithAttribues.asInstanceOf[List[(String, Any)]])
     }
 
     // TODO: should we use Unit as a write result instead of Mongo driver results?
