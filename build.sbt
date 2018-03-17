@@ -4,6 +4,7 @@ version := "1.0"
 
 scalaVersion := "2.11.6"
 
+val circleVersion = "0.9.1"
 
 libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick" % "3.1.0-M1",
@@ -13,5 +14,9 @@ libraryDependencies ++= Seq(
   "com.novus" %% "salat" % "1.9.8",
   "com.typesafe.slick" %% "slick-testkit" % "3.0.0" % "test",
   "com.novocode" % "junit-interface" % "0.10" % "test",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+  "org.scalatest" %% "scalatest" % "2.2.4" % "test",
+  "io.circe" %% "circe-core" % circleVersion,
+  "io.circe" %% "circe-generic" % circleVersion,
+  "io.circe" %% "circe-parser" % circleVersion,
+  "io.circe" %% "circe-optics" % circleVersion
 )

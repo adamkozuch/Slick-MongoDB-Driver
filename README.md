@@ -14,13 +14,14 @@ Features to be implemented:
 
 Usage
 TODO compy unit test
-First we need to do following imports
+In order to use driver we need to do following imports in our project
 ```
 import slick.mongodb.lifted.MongoDriver.api._
 import slick.lifted.{ProvenShape, Tag}
 import slick.mongodb.types.doc
 ```
 Defining documents
+Below I present sample usage of implemented features.
 ```
 case class first(x: Int, secondLevel: second, y: IndexedSeq[String]) extends doc.NewTerm
 case class second(c: Int, thirdLevel: third1, thirdLevel2:third2) extends doc.NewTerm
@@ -28,7 +29,7 @@ case class third(c: Int, d: IndexedSeq[Int]) extends doc.NewTerm
 ```
 For the client code we define case classes. Extending it with doc.NewTerm is a boilerplate
 which is expected to be removed in the future.
-Secondly we can define our mapping in following way
+Secondly defining of mapping is following
 ```
 class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocument") {
 
@@ -53,6 +54,7 @@ class thirdLevelDocument(tag:Tag) extends SubDocument[third](tag,"thirdLevelDocu
   def * = (x3, arrayOfFurthDoc) <> (third1.tupled, third1.unapply)
 }
 ```
+
 First difference is that we use data type Document instead of Table. This is top level
 data structure that representing collection in mongo. Next we are using class SubDocument 
 which representing nested documents in mongo. Also mapping works for collections.

@@ -1,16 +1,16 @@
 import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.tagobjects.Slow
 import org.scalatest.time.{Seconds, Span}
 import slick.mongodb.lifted.MongoDriver.api._
 import slick.lifted.{ProvenShape, Tag}
 import slick.mongodb.types.doc
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Created by adam on 10.07.15.
  */
 case class first(x: Int, secondLevel: second, y: IndexedSeq[String]) extends doc.NewTerm
-case class second(c: Int, thirdLevel: third1, thirdLevel2:third2) extends doc.NewTerm
+case class second(c: Int, thirdLevel2:third2) extends doc.NewTerm
 case class third1(c: Int, fourthLevel: fourth) extends doc.NewTerm
 case class third2(c: Double, s: String) extends doc.NewTerm
 case class fourth(c: Int, d: IndexedSeq[Int]) extends doc.NewTerm
@@ -23,16 +23,14 @@ class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocum
   def secondDoc = doc[secoundLevelDocument](tags)
   def arrOfString = array(field[String]("y"))
   def * = (x1, secondDoc, arrOfString) <> (first.tupled, first.unapply)
-
-
 }
 
 class secoundLevelDocument(tag:Tag) extends SubDocument[second](tag,"secoundLevelDocument") {
   type previousDocument = firstLevelDocument
   def x2 = field[Int]("primitiveFieldSecundLevel")
-  def thirdDoc1 = doc[thirdLevelDocument1](tag)
+//  def thirdDoc1 = doc[thirdLevelDocument1](tag)
   def thirdDoc2 = doc[thirdLevelDocument2](tag)
-  def * = (x2, thirdDoc1, thirdDoc2) <> (second.tupled, second.unapply)
+  def * = (x2, thirdDoc2) <> (second.tupled, second.unapply)
 }
 
 class thirdLevelDocument1(tag:Tag) extends SubDocument[third1](tag,"thirdLevelDocument1") {
@@ -99,43 +97,48 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   var db: Database = _
 
+  test("single value insert test")
+  {
+    val singleValueInsert = DBIO.seq(documentQuery +=
+      first(4,second(1,third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  ))
+        lazy val result =  (db.run(singleValueInsert)).futureValue
+    result
+  }
+
+  test("multiple value insert test")
+  {
+//        val multipleValueInsert = DBIO.seq(documentQuery ++=
+//          List(
+//            first(5,second(1,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  ),
+//            first(9,second(77,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  )
+//          ))
+//
+//        lazy val result =  (db.run(multipleValueInsert)).futureValue
+//        result
+  }
 
   test("third level document select")
   {
-  lazy val result =  (db.run(documentQuery.map(x => x.secondDoc.thirdDoc1).result)).futureValue
-    //result
+    lazy val result =  (db.run(documentQuery.map(x => x.secondDoc.thirdDoc2).result)).futureValue
+    result.foreach(x => print(x))
   }
-
 
   test("two level field select ")
   {
-    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result)).futureValue
+    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result).map(println)).futureValue
     println("What kind of result " + result)
   }
 
   test("second level document select")
   {
-    lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc1).result)).futureValue
-    //println("This is the result" + result.toString())
+//    lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc1).result)).futureValue
+//    println(result.toString())
   }
 
 
   test("filter by nested field")
   {
-    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.thirdDoc2).result)).futureValue
-    //println("This is result2" + result)
-  }
-
-
-  test("nested insert")
-  {
-    val simpleInsert = DBIO.seq(documentQuery ++=
-      List(
-        first(5,second(1,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  ),
-        first(9,second(77,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  )
-      ))
-    lazy val result =  (db.run(simpleInsert)).futureValue
+    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc).result).map(println)).futureValue
     result
   }
-
 }

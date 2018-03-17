@@ -1,6 +1,5 @@
 package slick.mongodb.lifted
 
-
 import com.mongodb.casbah.Imports._
 
 import scala.annotation.implicitNotFound
@@ -16,7 +15,6 @@ trait MongoInsertInvokerComponent extends BasicInsertInvokerComponent{ driver: M
   override def createInsertInvoker[T](compiled: CompiledInsert): InsertInvoker[T] = new InsertInvokerDef(compiled)
   override type CompiledInsert = Node     // TODO: change to MongoNode when moving from SQL node tree to mongo tree
 
-  // TODO: use mongo-specific nodes, add support for nested document structure
   @implicitNotFound("Implicit converter of type ${T}=>DBObject required for MongoDB InsertInvoker")
   final class InsertInvokerDef[T](val node: CompiledInsert) extends super.InsertInvokerDef[T] with GenericLiftedMongoInvoker[T] {
     println(s"Query invoker created with node:\t$node")
@@ -27,19 +25,21 @@ trait MongoInsertInvokerComponent extends BasicInsertInvokerComponent{ driver: M
     val binder: Product => MongoDBObject = { p: Product =>
       var coll = scala.collection.mutable.ArrayBuffer(attributeNames)
       var counter = 0;
-
-      def joinAttributes(a:doc.NewTerm):List[Any] = a.asInstanceOf[Product].productIterator.toList.map(
+      // find better way to do that TODO
+      def joinAttributes(p:doc.NewTerm):List[Any] = p.asInstanceOf[Product].productIterator.toList.map(
         x => x match {
           case x:doc.NewTerm => {
             var s = coll(0)(counter)
             counter = counter + 1
             s -> MongoDBObject(joinAttributes(x).asInstanceOf[List[(String, Any)]])
           }
-          case v:Vector[_] => { // check if only primitive arrays
+
+          case v:Vector[_] => {
             var s = coll(0)(counter)
             counter = counter + 1
             (s, v)
           }
+
           case y:Any => {
             var s = coll(0)(counter)
             counter = counter + 1

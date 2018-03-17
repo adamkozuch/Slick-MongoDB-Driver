@@ -6,7 +6,7 @@ import scala.collection.immutable.Map
 import scala.collection.generic.CanBuildFrom
 import slick.util.CloseableIterator
 import slick.util.iter._
-import scala.slick.backend.DatabaseComponent
+import slick.backend.DatabaseComponent
 
 
 /** Base trait for all statement invokers of result element type R. */
