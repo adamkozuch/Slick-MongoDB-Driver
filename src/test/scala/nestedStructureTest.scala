@@ -12,8 +12,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 case class first(x: Int, secondLevel: second, y: IndexedSeq[String]) extends doc.NewTerm
 case class second(c: Int, thirdLevel2:third2) extends doc.NewTerm
 case class third1(c: Int, fourthLevel: fourth) extends doc.NewTerm
-case class third2(c: Double, s: String) extends doc.NewTerm
-case class fourth(c: Int, d: IndexedSeq[Int]) extends doc.NewTerm
+case class fourth(c: Int, d: Int) extends doc.NewTerm
+case class third2(c: Double, s: String, m: fourth) extends doc.NewTerm
 
 
 
@@ -46,29 +46,31 @@ class thirdLevelDocument2(tag:Tag) extends SubDocument[third2](tag,"thirdLevelDo
   type previousDocument = secoundLevelDocument
   def x3 = field[Double]("primitiveFieldThirdLevel11")
   def x4 = field[String]("primitiveFieldThirdLevel22")
-  def * = (x3, x4) <> (third2.tupled, third2.unapply)
+  def x5 = doc[fourthLevelDocument](tag)
+  def * = (x3, x4, x5) <> (third2.tupled, third2.unapply)
 }
 
 
 class fourthLevelDocument(tag:Tag) extends SubDocument[fourth](tag,"fourthLevelDocument") {
   def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
-  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
-  def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
+  def x5 = field[Int]("otherName")
+//  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
+  def * = (x4, x5) <> (fourth.tupled, fourth.unapply)
 }
 
 
-class additional1(tag:Tag) extends SubDocument[fourth](tag,"add1") {
-  def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
-  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
-  def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
-}
-
-
-class additional2(tag:Tag) extends SubDocument[fourth](tag,"add2") {
-  def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
-  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
-  def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
-}
+//class additional1(tag:Tag) extends SubDocument[fourth](tag,"add1") {
+//  def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
+//  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
+//  def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
+//}
+//
+//
+//class additional2(tag:Tag) extends SubDocument[fourth](tag,"add2") {
+//  def x4 = field[Int]("firstPrimitiveFieldFourthLevel")
+//  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
+//  def * = (x4, arrOfInt) <> (fourth.tupled, fourth.unapply)
+//}
 
 case class noProj(c: Int, s: Int)
 
@@ -100,21 +102,21 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   test("single value insert test")
   {
     val singleValueInsert = DBIO.seq(documentQuery +=
-      first(4,second(1,third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  ))
+      first(4,second(1,third2(10.0,"ala ma kota", fourth(10, 12)) ),IndexedSeq("a", "b", "c")  ))
         lazy val result =  (db.run(singleValueInsert)).futureValue
     result
   }
 
   test("multiple value insert test")
   {
-//        val multipleValueInsert = DBIO.seq(documentQuery ++=
-//          List(
-//            first(5,second(1,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  ),
-//            first(9,second(77,third1(33,fourth(1,IndexedSeq(1,2,3))), third2(10.0,"ala ma kota") ),IndexedSeq("a", "b", "c")  )
-//          ))
-//
-//        lazy val result =  (db.run(multipleValueInsert)).futureValue
-//        result
+        val multipleValueInsert = DBIO.seq(documentQuery ++=
+          List(
+            first(5,second(1, third2(10.0,"ala ma kota", fourth(1,2)) ),IndexedSeq("a", "b", "c")  ),
+            first(9,second(77, third2(10.0,"ala ma kota", fourth(7, 9)) ),IndexedSeq("a", "b", "c")  )
+          ))
+
+        lazy val result =  (db.run(multipleValueInsert)).futureValue
+        result
   }
 
   test("third level document select")
@@ -138,7 +140,7 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   test("filter by nested field")
   {
-    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc).result).map(println)).futureValue
-    result
+    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc).result).map(x => println("this is result" + x))).futureValue
+    println(result)
   }
 }
