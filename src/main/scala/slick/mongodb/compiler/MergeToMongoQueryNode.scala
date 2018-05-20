@@ -1,7 +1,7 @@
 package slick.mongodb.compiler
 
 import slick.ast._
-import slick.compiler.{WellTyped, Phase, CompilerState}
+import slick.compiler.{Phase, CompilerState}
 import Util._
 import TypeUtil._
 import slick.mongodb.MongoQueryNode
@@ -26,5 +26,5 @@ class MergeToMongoQueryNode extends Phase {
     val s1 = if(sort.isEmpty) Seq.empty else sort(0)
 
 
-      MongoQueryNode(new AnonSymbol, from, se1,f1,s1).infer(typeChildren = true)    :@ state.get(new TakeMapping).get
+      MongoQueryNode(new AnonSymbol, from, se1,f1).infer(typeChildren = true)    :@ state.get(new TakeMapping).get
 }}}

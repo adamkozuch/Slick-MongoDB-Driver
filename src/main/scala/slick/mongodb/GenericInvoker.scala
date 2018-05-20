@@ -5,13 +5,13 @@ import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.immutable.Map
 import scala.collection.generic.CanBuildFrom
 import slick.util.CloseableIterator
-import slick.util.iter._
-import slick.backend.DatabaseComponent
+//import slick.util.iter._
+import slick.basic.BasicBackend
 
 
 /** Base trait for all statement invokers of result element type R. */
 trait GenericInvoker[+R] { self =>
-  type Session <: DatabaseComponent#SessionDef
+  type Session <: BasicBackend#SessionDef
 
   /** Execute the statement and return a CloseableIterator of the converted
     * results. The iterator must either be fully read or closed explicitly. */
@@ -71,16 +71,16 @@ trait GenericInvoker[+R] { self =>
     _z
   }
 
-  /** Execute the statement and feed the converted rows of the result set into an iteratee. */
-  final def enumerate[B, RR >: R](iter: IterV[RR,B])(implicit session: Session): IterV[RR, B] = {
-    var _iter = iter
-    val it = iterator(session)
-    try {
-      while(it.hasNext && !_iter.isInstanceOf[Done[_,_]]) {
-        val cont = _iter.asInstanceOf[Cont[RR,B]]
-        _iter = cont.k(El(it.next()))
-      }
-    } finally it.close()
-    _iter
-  }
+//  /** Execute the statement and feed the converted rows of the result set into an iteratee. */
+//  final def enumerate[B, RR >: R](iter: IterV[RR,B])(implicit session: Session): IterV[RR, B] = {
+//    var _iter = iter
+//    val it = iterator(session)
+//    try {
+//      while(it.hasNext && !_iter.isInstanceOf[Done[_,_]]) {
+//        val cont = _iter.asInstanceOf[Cont[RR,B]]
+//        _iter = cont.k(El(it.next()))
+//      }
+//    } finally it.close()
+//    _iter
+//  }
 }

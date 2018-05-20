@@ -20,20 +20,20 @@ class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocum
   def x1 = field[Int]("primitiveFieldFirstLevel")
   def secondDoc = doc[secoundLevelDocument](tags)
 //  def arrOfString = array(field[String]("y"))
-  def * = (x1, secondDoc) <> (first.tupled, first.unapply)
+  def * = (x1, secondDoc) <> (first.tupled, first.unapply)  // tutaj chodzi o to że dokument jest nested
 }
 
 class secoundLevelDocument(tag:Tag) extends SubDocument[second](tag,"secoundLevelDocument") {
   type previousDocument = firstLevelDocument
   def x2 = field[Int]("primitiveFieldSecundLevel")
   def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
-//  def thirdDoc1 = doc[thirdLevelDocument1](tag)
+  def thirdDoc1 = doc[thirdLevelDocument1](tag)
   def thirdDoc2 = doc[thirdLevelDocument2](tag)
   def * = (x2, thirdDoc2) <> (second.tupled, second.unapply)
 }
 
 class thirdLevelDocument1(tag:Tag) extends SubDocument[third1](tag,"thirdLevelDocument1") {
-  type previousDocument = secoundLevelDocument
+//  type previousDocument = secoundLevelDocument
   def x3 = field[Int]("primitiveFieldThirdLevel")
   def dyn = field[Int]("DynamicprimitiveFieldThirdLevel")
   def arrayOfFurthDoc = doc[fourthLevelDocument](tag)
@@ -41,7 +41,7 @@ class thirdLevelDocument1(tag:Tag) extends SubDocument[third1](tag,"thirdLevelDo
 }
 
 class thirdLevelDocument2(tag:Tag) extends SubDocument[third2](tag,"thirdLevelDocument2") {
-  type previousDocument = secoundLevelDocument
+//  type previousDocument = secoundLevelDocument
   def x3 = field[Double]("primitiveFieldThirdLevel11")
   def x4 = field[String]("primitiveFieldThirdLevel22")
   def * = (x3, x4) <> (third2.tupled, third2.unapply)
@@ -109,7 +109,9 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
         val multipleValueInsert = DBIO.seq(documentQuery ++=
           List(
             first(4,second(1,third2(10,"iiii"))),
-            first(4,second(1,third2(10,"mmmm")))
+            first(0,second(1,third2(10,"mmmm"))),
+            first(10,second(1,third2(10,"mmmm"))),
+            first(14,second(1,third2(10,"mmmm")))
           ))
 
         lazy val result =  (db.run(multipleValueInsert)).futureValue
@@ -130,14 +132,15 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   test("second level document select")
   {
-//    lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc1).result)).futureValue
-//    println(result.toString())
+    lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc2).result)).futureValue
+    result.map(x => print(x.asInstanceOf[third2].c + "    "))
   }
 
 
   test("filter by nested field")
   {
-    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc).result).map(x => println("this is result" + x))).futureValue
+    print("adam")
+    lazy val result = ( db.run(documentQuery.filter(x => x.x1 > 10 && x.x1 < 10).map(x => x.secondDoc.thirdDoc2).result)).futureValue
     println(result)
   }
 }

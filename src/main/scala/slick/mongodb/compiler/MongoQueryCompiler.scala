@@ -15,7 +15,6 @@ object MongoQueryCompiler {
     MongoPhase.expandDocument,
     MongoPhase.shufflePhase,
     Phase.verifySymbols,
-    Phase.verifyTypes,
     MongoPhase.mergeToMongoQueryNode
   )
 

@@ -2,42 +2,42 @@ package slick.mongodb.lifted
 
 import com.mongodb.DBObject
 import com.mongodb.casbah.commons.Imports._
-
 import slick.ast._
 import slick.mongodb.MongoInvoker
 import slick.mongodb.direct.{GetResult, MongoBackend, TypedMongoCollection}
+import slick.util.ConstArray
 
 trait GenericLiftedMongoInvoker[T]  {
   protected def queryNode: Node
 
   /** Used to retrieve attribute names from the query node */
-  protected def attributeNames = attributes  //without type
+  protected def attributeNames:List[String] =  attributes  //without type
 
-  def expand(n:Node):List[String] = n match {
+  def expand(n:Node):ConstArray[String] = n match {
     case s:StructNode  => {
-      val attr :List[String]= s.elements.flatMap(x =>  x._2 match {
-        case nested:StructNode =>  List(x._1.name) ++ expand(nested)
-        case p:ProductNode => p.children.map(_.asInstanceOf[Select].field.name).toList
-        case field:Select => List(field.field.name)
+      val attr :ConstArray[String] = s.elements.flatMap(x =>  x._2 match {
+        case nested:StructNode =>  ConstArray(x._1.name) ++ expand(nested)
+        case p:ProductNode => p.children.map(_.asInstanceOf[Select].field.name)
+        case field:Select => ConstArray(field.field.name)
       }
-      ).toList
+      )
       attr
     }
-    case pn:ProductNode  =>  pn.children.map(_.asInstanceOf[Select].field.name).toList
-    case d:Select => List(d.field.name)
+    case pn:ProductNode  =>  pn.children.map(_.asInstanceOf[Select].field.name)
+    case d:Select => ConstArray(d.field.name)
   }
   /** Used to retrieve attribute names and their types from the query node*/
-  protected def attributes[String] = queryNode match {  // todo for now result without a typ
-    case TableExpansion(_,_,s:StructNode) =>  expand(s)
-    case TableExpansion(_,_,pn: ProductNode) => pn.children.map(_.asInstanceOf[Select].field.name).toIndexedSeq  //zip pn.nodeChildren.map( ch =>ch.nodeType) //zip pn.buildType.children  // todo build type is now protected resolve problem
-    case TableExpansion(_,_,TypeMapping(ch,_,_)) =>  ch.children.map(_.asInstanceOf[Select].field.name)
+  protected def attributes[String]: List[String] = queryNode match {  // todo for now result without a typ
+    case TableExpansion(_,_,s:StructNode) =>  expand(s).toArray.toList.asInstanceOf[List[String]]
+    case TableExpansion(_,_,pn: ProductNode) => (pn.children.map(_.asInstanceOf[Select].field.name)).toArray.map(x => x.toString).toList.asInstanceOf[List[String]]
+    case TableExpansion(_,_,TypeMapping(ch,_,_)) =>  ch.children.map(_.asInstanceOf[Select].field.name).asInstanceOf[List[String]]
   }
 
   /** Used to convert data from DBObject to specified type after find operation - required for TypedMongoCollection creation */
   val converter: GetResult[Product] =
   // TODO: add support for arbitrary type, non-tuple (single attribute)
     GetResult[Product](r => {
-      val merged = attributeNames.map(x => x)     //r.get(_).get)
+      val merged = attributeNames
       GenericLiftedMongoInvoker.seqToTuple(merged)
     })
 
@@ -141,7 +141,7 @@ class LiftedMongoInvoker[T](val queryNode: Node, val session: MongoBackend#Sessi
       val (attributeName,value) = singleArgumentFunctionParameters(arguments)
       val comparisonOperator = SQLToMongoOperatorsMapping(operator)
       addComplexAttribute(query,attributeName,MongoDBObject(comparisonOperator -> value))
-    case Apply(operatorNot: Library.SqlOperator,nArguments) if operatorNot == Library.Not && nArguments.size == 1 =>
+    case Apply(operatorNot: Library.SqlOperator,nArguments) if operatorNot == Library.Not && nArguments.toSeq.size == 1 =>
       appendNegatedParameterFromNode(nArguments(0),query)
   }
 
@@ -166,11 +166,11 @@ class LiftedMongoInvoker[T](val queryNode: Node, val session: MongoBackend#Sessi
       val (attributeName,value) = singleArgumentFunctionParameters(arguments)
       val comparisonOperator = SQLToMongoOperatorsMapping(operator)
       query.++((attributeName,MongoDBObject($not -> MongoDBObject(comparisonOperator -> value))))
-    case Apply(Library.Not,arguments) if arguments.size == 1 =>
+    case Apply(Library.Not,arguments) if arguments.toSeq.size == 1 =>
       appendQueryParameterFromNode(arguments(0),query)
   }
 
-  def singleArgumentFunctionParameters(arguments: Seq[Node]):(String,Any) = {
+  def singleArgumentFunctionParameters(arguments: ConstArray[Node]):(String,Any) = {
     val attributeName = (arguments(0) match {case Path(an :: _)=>an}).toString
     val value = arguments(1) match {case LiteralNode(v)=>v}
     println(s"attributeName=$attributeName")
@@ -178,7 +178,7 @@ class LiftedMongoInvoker[T](val queryNode: Node, val session: MongoBackend#Sessi
     (attributeName,value)
   }
   
-  def multipleArgumentFunctionParameters(arguments: Seq[Node]):(String,Seq[Any]) = {
+  def multipleArgumentFunctionParameters(arguments: ConstArray[Node]):(String,ConstArray[Any]) = {
     val attributeName = (arguments(0) match {case Path(an :: _)=>an}).toString
     val parameters = arguments(1).asInstanceOf[ProductNode].children.map {case LiteralNode(v)=>v}
     println(s"attributeName=$attributeName")

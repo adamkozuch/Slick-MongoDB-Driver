@@ -1,7 +1,7 @@
 package slick.mongodb.compiler
 
 import slick.ast._
-import slick.compiler.{WellTyped, CompilerState, Phase}
+import slick.compiler.{CompilerState, Phase}
 import slick.mongodb.SubDocNode
 import Util._
 import TypeUtil._

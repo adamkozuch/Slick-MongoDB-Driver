@@ -6,7 +6,7 @@ import com.typesafe.config.Config
 import org.reactivestreams.Subscriber
 import org.slf4j.LoggerFactory
 
-import slick.backend.{RelationalBackend, DatabaseComponent}
+import slick.relational.{RelationalBackend}
 import slick.util.{AsyncExecutor, SlickLogger}
 
 trait MongoBackend extends RelationalBackend{
@@ -45,9 +45,6 @@ trait MongoBackend extends RelationalBackend{
       new Session(mongoDb)
     }
 
-    override def withTransaction[T](f: Session => T): T = throw new UnsupportedOperationException("Transactions are not supported by MongoDB")
-
-    override def withDynTransaction[T](f: => T): T = throw new UnsupportedOperationException("Transactions are not supported by MongoDB")
 
     /** Free all resources allocated by Slick for this Database, blocking the current thread until
       * everything has been shut down.
@@ -69,7 +66,7 @@ trait MongoBackend extends RelationalBackend{
     protected[this] def createDatabaseActionContext[T](_useSameThread: Boolean) = new BasicActionContext { val useSameThread = _useSameThread } // base on HeapBackend
   }
 
-  trait DatabaseFactoryDef extends super.DatabaseFactoryDef{
+  trait DatabaseFactoryDef extends {
     //TODO: add other methods and parameters here
     def forURL(url: String, executor: AsyncExecutor = AsyncExecutor.default()):DatabaseDef = new DatabaseDef(url, executor )
   }
@@ -90,20 +87,6 @@ trait MongoBackend extends RelationalBackend{
      *
      * */
     override def close(): Unit = {}
-
-    /**
-     * Inherited method
-     *
-     * Transactions are not supported by MongoDB
-     * */
-    override def rollback(): Unit = throw new UnsupportedOperationException("Transactions are not supported by MongoDB")
-
-    /**
-     * Inherited method
-     *
-     * Transactions are not supported by MongoDB
-     * */
-    override def withTransaction[T](f: => T): T = throw new UnsupportedOperationException("Transactions are not supported by MongoDB")
 
     /**
      * Inherited method

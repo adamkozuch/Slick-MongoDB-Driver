@@ -2,9 +2,9 @@ package slick.mongodb
 
 import slick.ast.Type._
 import slick.ast._
-
 import TypeUtil.typeToTypeUtil
 import Util._
+import slick.util.ConstArray
 
 /**
  * Created by adam on 06.08.15.
@@ -16,10 +16,12 @@ import Util._
 case class SubDocNode(termSymbol: TermSymbol, structNode: Node, select:Node,mapping:Node) extends Node {
   type Self = SubDocNode
   protected def buildType = ???
-  def children = Seq(structNode,select, mapping)
-  protected[this] def rebuild(ch: IndexedSeq[Node]) = SubDocNode(termSymbol,ch(0),ch(1),ch(2))
-  protected[this] def withInferredType(scope: Scope, typeChildren: Boolean, retype: Boolean):Self = {
-    val n2 = mapping.infer(scope,typeChildren, retype)
+  def children = ConstArray(structNode,select, mapping)
+
+  override protected[this] def rebuild(ch: ConstArray[Node]) = SubDocNode(termSymbol,ch(0),ch(1),ch(2))
+
+  override protected[this] def withInferredType(scope: Scope, typeChildren: Boolean) = {
+    val n2 = mapping.infer(scope,typeChildren)
     SubDocNode(termSymbol, structNode,select,mapping) :@ n2.nodeType
   }
 }
@@ -32,12 +34,13 @@ case class CollectionNode(termSymbol: TermSymbol, node: Node)extends Node {
 
   protected def buildType = ??? //CollectionType(c,t)
 
-  def children = Seq(node)
+  def children = ConstArray(node)
 
   protected[this] def rebuild(child:Node) = child
 
-  protected[this] def rebuild(ch: IndexedSeq[Node]) = CollectionNode(termSymbol,ch(0))
-  protected[this] def withInferredType(scope: Scope, typeChildren: Boolean, retype: Boolean) = ???
+  override protected[this] def rebuild(ch: ConstArray[Node]) =  CollectionNode(termSymbol,ch(0))
+
+  override protected[this] def withInferredType(scope: Scope, typeChildren: Boolean) = ???
 }
 
 
@@ -45,13 +48,13 @@ case class MongoQueryNode(sym:TermSymbol,from:Node ,select:Node ,filter:Option[N
 {
   type Self = MongoQueryNode
 
-  val children = Seq(from, select) ++ filter ++ sort.map(_._1) ++ limit ++ skip
+  val children = ConstArray(from, select) ++ filter //++ sort.map(_._1) ++ limit ++ skip
 
-  def generators = Seq((sym, from))
+  def generators = ConstArray((sym, from))
 
-  protected[this] def rebuildWithSymbols(gen: IndexedSeq[TermSymbol]) = copy(sym = gen.head)
+  protected[this] def rebuildWithSymbols(gen: ConstArray[TermSymbol]) = copy(sym = gen.head)
 
-  protected[this] def rebuild(ch: IndexedSeq[Node]) =
+  protected[this] def rebuild(ch: ConstArray[Node]) =
   {
     val newFrom = ch(0)
     val newSelect= ch(1)
@@ -68,39 +71,40 @@ case class MongoQueryNode(sym:TermSymbol,from:Node ,select:Node ,filter:Option[N
       from = newFrom,
       select = newSelect,
       filter = newFilter.headOption,
-      sort = (sort, newSort).zipped.map { case ((_, o), n) => (n, o) },
+      sort = (sort, newSort.toSeq).zipped.map { case ((_, o), n) => (n, o) },
       skip = newSkip.headOption,
       limit = newLimit.headOption
     )
   }
 
 
-  def withInferredType(scope: Type.Scope, typeChildren: Boolean, retype: Boolean): Self = {
-    val f2 = from.infer(scope, typeChildren, retype)
+  def withInferredType(scope: Type.Scope, typeChildren: Boolean): Self = {
+    val f2 = from.infer(scope, typeChildren)
     val genScope = scope + (sym -> f2.nodeType.asCollectionType.elementType)
 
-    val s2 = select.infer(genScope, typeChildren, retype)
-    val fl2 = mapOrNone(filter)(_.infer(genScope, typeChildren, retype))
+    val s2 = select.infer(genScope, typeChildren)
+    val fl2 = mapOrNone(filter)(_.infer(genScope, typeChildren))
     val s = sort.map(_._1)
-    val so2 = mapOrNone(s)(_.infer(genScope, typeChildren, retype))
-    val l2 = mapOrNone(limit)(_.infer(genScope, typeChildren, retype))
-    val sk2 = mapOrNone(skip)(_.infer(genScope, typeChildren, retype))
+//    val so2 = mapOrNone(s)(_.infer(genScope, typeChildren, retype))
+    val l2 = mapOrNone(limit)(_.infer(genScope, typeChildren))
+    val sk2 = mapOrNone(skip)(_.infer(genScope, typeChildren))
 
     val same = (f2 eq from) && (s2 eq select) && fl2.isEmpty  && l2.isEmpty && sk2.isEmpty
 
-    val newType =
-      if(!hasType || retype) CollectionType(f2.nodeType.asCollectionType.cons, s2.nodeType.asCollectionType.elementType)
-      else nodeType
+    val newType = nodeType
+      //if(!hasType || retype) CollectionType(f2.nodeType.asCollectionType.cons, s2.nodeType.asCollectionType.elementType)
+      //else nodeType
 
-    if(same && newType == nodeType) this else {
-      copy(
-        from = f2,
-        select = s2,
-        filter = fl2.map(_.headOption).getOrElse(filter),
-        sort = so2.map(so2 => (sort, so2).zipped.map { case ((_, o), n) => (n, o) }).getOrElse(sort),
-        limit = l2.map(_.headOption).getOrElse(limit),
-        skip = sk2.map(_.headOption).getOrElse(skip)) :@ newType
-    }
+    this
+//    if(same && newType == nodeType) this else {
+//      copy(
+//        from = f2,
+//        select = s2,
+//        filter = fl2.map(_.headOption).getOrElse(filter),
+//        sort = so2.map(so2 => (sort, so2).zipped.map { case ((_, o), n) => (n, o) }).getOrElse(sort),
+//        limit = l2.map(_.headOption).getOrElse(limit),
+//        skip = sk2.map(_.headOption).getOrElse(skip)) :@ newType
+//    }
   }
 }
 

@@ -1,10 +1,11 @@
 package slick.mongodb.compiler
 
 import slick.ast._
-import slick.compiler.{WellTyped, Phase, CompilerState}
+import slick.compiler.{CompilerState, Phase}
 import Util._
 import TypeUtil._
 import slick.mongodb.SubDocNode
+import slick.util.ConstArray
 
 /**
  * Created by adam on 12.08.15.
@@ -34,12 +35,12 @@ class AddDynamics extends Phase {
       def addElement(symbols: List[TermSymbol], s: Node): (TermSymbol, Node) = {
         symbols match {
           case h :: Nil => (h, s)
-          case h :: t => (h, StructNode(IndexedSeq((addElement(t, s)))))
+          case h :: t => (h, StructNode(ConstArray((addElement(t, s)))))
         }
       }
 
     def addNodes(n: Node, selects: List[Node]): Node = {
-      val tree2 = addSelect(n, Path.unapply(selects.head).get, selects.head)
+      val tree2 = addSelect(n, Path.unapply(selects.head.asInstanceOf[Select]).get, selects.head)
       selects match {
         case l :: Nil => tree2
         case l :: s => addNodes(tree2, s)

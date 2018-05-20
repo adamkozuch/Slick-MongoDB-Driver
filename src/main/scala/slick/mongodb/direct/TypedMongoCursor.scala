@@ -218,7 +218,7 @@ class TypedMongoCursor[+R](val underlying: MongoCursor)(implicit val converter: 
    */
   def close() = underlying.close()
 
-  def numGetMores = underlying.numGetMores
+//  def numGetMores = underlying.numGetMores
 
   /**
    * numSeen
@@ -230,7 +230,7 @@ class TypedMongoCursor[+R](val underlying: MongoCursor)(implicit val converter: 
    */
   def numSeen = underlying.numSeen
 
-  def sizes = underlying.sizes
+//  def sizes = underlying.sizes
 
   /**
    * batchSize

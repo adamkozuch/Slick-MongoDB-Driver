@@ -1,10 +1,13 @@
 package slick.mongodb.types
 
+
 import slick.ast._
 import slick.lifted._
 import slick.mongodb.SubDocNode
 import slick.mongodb.lifted.MongoDriver
-import slick.profile.RelationalTableComponent
+import slick.relational.RelationalTableComponent
+import slick.util.ConstArray
+
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox.Context
 
@@ -20,7 +23,7 @@ trait DocumentComponent extends RelationalTableComponent {
     extends Table[A](_documentTag, _documentName) {
 
 
-    def field[T](name: String)(implicit tt: TypedType[T], sh: Shape[_ <: FlatShapeLevel, _, T, _]) = column[T](name)
+    def field[T](name: String)(implicit tt: TypedType[T], sh: Shape[_ <: FlatShapeLevel, _, T, ConstColumn[T]]) = column[T](name)
 
     /**
      * Method for creating an arrays of primitive types and documents
@@ -49,7 +52,7 @@ trait DocumentComponent extends RelationalTableComponent {
           sym,
           tableNode,
           SubDocNode(sym,
-            StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children).toIndexedSeq),
+            StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children).force),
             Ref(sym),
             tableTag.taggedAs(Ref(sym)).*.toNode))
       case t: RefTag => t.path
@@ -66,12 +69,15 @@ trait DocumentComponent extends RelationalTableComponent {
 
         /** I encoded Path for nested documents or fields in refTag. */
         val refine = tableTag.taggedAs(Ref(docNameSymbol))
-        val symbols = Path.unapply(refine.tableTag.asInstanceOf[RefTag].path).get
+        val symbols = Path.unapply(refine.tableTag.asInstanceOf[RefTag].path.asInstanceOf[PathElement]).get
 
         /** type of symbol in the end of list list decide if it will be nested Select or
           *SubDocNode for building type in TableNode , Select for projection */
         // todo find a way to remove SubDocNode completely now subDocNodes are removed in RemoveSubDocNodes phase and AddDynamics
-         SubDocNode(docNameSymbol,StructNode(  (collectSymbols(tableTag, docNameSymbol) zip refine.*.toNode.children(0).children).toIndexedSeq),Path(symbols),refine.*.toNode )
+         SubDocNode(
+           docNameSymbol,
+           StructNode((collectSymbols(tableTag, docNameSymbol) zip refine.*.toNode.children(0).children).force) ,
+           Path(symbols),refine.*.toNode )
       }
       case t: RefTag => t.path // when I will need that refTag
     }
@@ -87,7 +93,7 @@ trait DocumentComponent extends RelationalTableComponent {
           tableTag match {
             case r: RefTag => Select(r.path, FieldSymbol(n)(options, tt)) :@ tt
             case b: BaseTag => {
-              val symbolsFromTag = Path.unapply(b.taggedAs(Ref(new FieldSymbol(tableName)(Seq(), UnassignedType))).tableTag.asInstanceOf[RefTag].path).get
+              val symbolsFromTag = Path.unapply(b.taggedAs(Ref(new FieldSymbol(tableName)(Seq(), UnassignedType))).tableTag.asInstanceOf[RefTag].path.asInstanceOf[PathElement]).get
               Path(List(FieldSymbol(n)(options, tt)) ::: symbolsFromTag) :@ tt
             }
           }
@@ -121,11 +127,11 @@ object doc {
       }
     }
 
-    val getSymbols = Path.unapply(refTag.path).get
+    val getSymbols = Path.unapply(refTag.path.asInstanceOf[PathElement]).get
     cons(new BaseTag {
       base: BaseTag =>
       def taggedAs(path: Node): Document[_] = cons(
-        new RefTag(Path(Path.unapply(path).get ::: getSymbols)) {
+        new RefTag(Path(Path.unapply(path.asInstanceOf[PathElement]).get ::: getSymbols)) {
           def taggedAs(path: Node) = {
             base.taggedAs(path)
           }

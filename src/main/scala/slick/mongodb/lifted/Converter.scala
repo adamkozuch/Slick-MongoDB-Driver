@@ -9,6 +9,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe._
 import io.circe.generic.semiauto._
+import slick.util.ConstArray
 
 /**
  * Created by adam on 26.08.15.
@@ -83,8 +84,8 @@ class Converter[R](t:Type) {
                   processProductType(x, values(idx).asInstanceOf[List[_]])
                 }
               }
-              case y => { values(idx) match {
-                case list:Vector[_] => list
+              case y => { values.asInstanceOf[List[List[_]]](0)(idx) match {
+                case list:ConstArray[_] => list
                 case v => v
               }}
             }
