@@ -144,14 +144,55 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
     assert(result == expected)
   }
 
-  test("topLevel2 whole document no conditions (chaninig case)")
+  test("topLevel1 query array from top level")
   {
     val expected = Vector(
-      top2(second(1,third2(111,IndexedSeq("Adam", "Kozuch")))),
-      top2(second(5,third2(10,IndexedSeq("AAAA", "BBB")))),
-      top2(second(7,third2(19,IndexedSeq("CCC", "DDD")))))
-    lazy val result =  (db.run(documentQuery2.result)).futureValue
+       IndexedSeq(2.3, 7.8, 9.1)
+      , IndexedSeq(4.5, 3.0, 8.8, 1.6)
+      , IndexedSeq(4.5, 9.0, 3.8, 7.6))
+    lazy val result =  (db.run(documentQuery1.map(x => x.arrOfDouble).result)).futureValue
+    print(result)
 
     assert(result == expected)
   }
+
+  test("topLevel1 query primitive value")
+  {
+    val expected = Vector(1, 100, 145)
+    lazy val result =  (db.run(documentQuery1.map(x => x.x1).result)).futureValue
+    print(result)
+
+    assert(result == expected)
+  }
+
+  test("topLevel1 query nested document")
+  {
+    val expected = Vector(
+      second(1,third2(10,IndexedSeq("John", "Smith"))),
+      second(5,third2(10,IndexedSeq("ABC", "DEF"))),
+      second(7,third2(19,IndexedSeq("IJK", "LMN"))))
+    lazy val result =  (db.run(documentQuery1.map(x => x.secondDoc).result)).futureValue
+    print(result)
+
+    assert(result == expected)
+  }
+
+  test("topLevel1 checking number of documnents after filter")
+  {
+    lazy val result =  (db.run(documentQuery1.filter(x => x.secondDoc.x2 <= 5).map(x => x.arrOfDouble).result)).futureValue
+    print(result)
+
+    assert(result.length == 2)
+  }
+
+//  test("topLevel2 whole document no conditions (chaninig case)")
+//  {
+//    val expected = Vector(
+//      top2(second(1,third2(111,IndexedSeq("Adam", "Kozuch")))),
+//      top2(second(5,third2(10,IndexedSeq("AAAA", "BBB")))),
+//      top2(second(7,third2(19,IndexedSeq("CCC", "DDD")))))
+//    lazy val result =  (db.run(documentQuery2.result)).futureValue
+//
+//    assert(result == expected)
+//  }
 }

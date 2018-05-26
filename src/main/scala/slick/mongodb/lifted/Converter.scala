@@ -23,16 +23,16 @@ class Converter[R](t:Type) {
       clz.getConstructors()(0).newInstance(seq.map(_.asInstanceOf[AnyRef]): _*).asInstanceOf[Product]
     }
 
-    def extractValues(obj:MongoDBObject): List[AnyRef] = obj.values.toList.map(x => x match {
+    def extractValues(obj:MongoDBObject): Vector[AnyRef] = obj.values.toVector.map(x => x match {
       case x:MongoDBObject => extractValues(x)
-      case x :BasicDBList => x.toArray
+      case x :BasicDBList => x.toArray.toVector // maye I shouldn't cast it to vector
       case n:BasicDBObject  => decoupleBasicObject(n)
       case y => y
     })
 
-    def decoupleBasicObject(obj:DBObject): List[AnyRef] = obj.toMap().values().toArray.toList.map(x => x match {
+    def decoupleBasicObject(obj:DBObject): Vector[AnyRef] = obj.toMap().values().toArray.toVector.map(x => x match {
       case yy :BasicDBList => {
-       val some =  yy.toArray.toIndexedSeq
+       val some =  yy.toArray.toVector
         some
       }
       case z: DBObject => decoupleBasicObject(z)
@@ -40,7 +40,7 @@ class Converter[R](t:Type) {
       case x => x
     })
 
-    val decoupled = extractValues(r).tail // we skip id
+    val decoupled = extractValues(r).tail // we skip treat it as a tuple
 
     def partialyTupleTransformed(list:List[_]):Any = list.map(x => x match {
       case y:List[_] => toTuple(partialyTupleTransformed(y).asInstanceOf[Seq[_]])
@@ -59,7 +59,7 @@ class Converter[R](t:Type) {
       return true
     }
 
-    def matchTypeWithValues(tp:Type, values:List[_]) = tp.children(0) match {
+    def matchTypeWithValues(tp:Type, values:Vector[_]) = tp.children(0) match {
 
       case x: NominalType => x.structuralView match {
         case s:MappedScalaType => {
@@ -67,10 +67,11 @@ class Converter[R](t:Type) {
           res
         }
         case n: ScalaNumericType[_]  => values(0)  // TODO making this case more generic
+        case c: CollectionType  => values
       }
     }
 
-    def processProductType(y:MappedScalaType, values:List[_]): Any  = {
+    def processProductType(y:MappedScalaType, values:Vector[_]): Any  = {
       y.structural.children(0) match {
         case p: ProductType => {
           val deepConverted = for (idx <- 0 to p.elements.length - 1) yield
@@ -79,12 +80,12 @@ class Converter[R](t:Type) {
                 // iterate elements of product Mapped type or primitive
               case x: MappedScalaType => {
                 if (allTypesPrimitives(x)) {
-                  x.mapper.toMapped(toTuple(values(idx).asInstanceOf[List[_]]))
+                  x.mapper.toMapped(toTuple(values(idx).asInstanceOf[Vector[_]]))
                 } else {
-                  processProductType(x, values(idx).asInstanceOf[List[_]])
+                  processProductType(x, values(idx).asInstanceOf[Vector[_]])
                 }
               }
-              case y => { values.asInstanceOf[List[_]](idx) match {
+              case y => { values.asInstanceOf[Vector[_]](idx) match {
                 case list:ConstArray[_] => list
                 case v => v
               }}
@@ -99,10 +100,10 @@ class Converter[R](t:Type) {
     // decoupled is different depending on calling from top level and nested level TODO
 
     val tttt = {
-      if (decoupled.length > 1)
+      if (decoupled.length > 1) // TODO this condition is wrong
         matchTypeWithValues(t, decoupled).asInstanceOf[R]
       else
-        matchTypeWithValues(t, decoupled(0).asInstanceOf[List[_]]).asInstanceOf[R]  // TODO ugly hack change later
+        matchTypeWithValues(t, decoupled(0).asInstanceOf[Vector[_]]).asInstanceOf[R]  // TODO ugly hack change later
     }
     tttt
   })

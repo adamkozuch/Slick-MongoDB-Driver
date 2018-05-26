@@ -4,7 +4,7 @@ import com.mongodb.casbah.commons.Imports._
 import com.mongodb.casbah.commons.MongoDBObject
 import slick.ast._
 import slick.ast.TableNode
-import slick.mongodb.MongoQueryNode
+import slick.mongodb.{CollectionNode, MongoQueryNode}
 import slick.util.ConstArray
 
 /**
@@ -22,7 +22,7 @@ class CreateProjection {
         case p:ProductNode => p.children
         case s:Select => ConstArray(s)
         case r:Ref => ConstArray.empty
-        case _ => ConstArray.empty
+        case c:CollectionNode => ConstArray(c.node)
       }
 
       def singleArgumentFunctionParameters(argument: Node):(String,Any) = {
