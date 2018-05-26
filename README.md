@@ -65,7 +65,7 @@ class thirdLevelDocument(tag: Tag) extends SubDocument[third](tag, "thirdLevelDo
   def * = (x3, x4) <> (third.tupled, third.unapply)
 }
 ```
-For more I encourage you to look at the following test: 
+For more I encourage you to look at the following test: https://github.com/adamkozuch/Slick-MongoDB-Driver/blob/update/src/test/scala/test.scala
 
 First difference is that we use data type Document instead of Table. This is top level
 data structure that representing collection in mongo. Next we are using class SubDocument 
