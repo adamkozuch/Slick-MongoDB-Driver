@@ -1,15 +1,16 @@
 [![Build Status](https://travis-ci.org/adamkozuch/Slick-MongoDB-Driver.svg?branch=master)](https://travis-ci.org/adamkozuch/Slick-MongoDB-Driver)
 # Slick-MongoDB-Driver (experimental)
 Slick driver for mongodb. Continuation of a https://github.com/dvinokurov/slick/tree/tmp/mongodb project.
-In this project we have developed Document data structure which enables mapping between mongodb collection and 
+In this project we have developed Document data structure which enables mapping between mongodb collection and  
+
 Scala client side code.
-# Slick version
-3.1.0-M1
+
+Slick version  3.2.3
+
 Following features are implemented: 
-### performing insert of document that contains nested documents
-### performing insert of document that contains arrays of primitives 
-### querying mongo collection
-##
+#### performing insert of document that contains nested documents
+#### performing insert of document that contains arrays of primitives 
+#### querying mongo collection
 
 Usage
 In order to use driver we need to do following imports in our project
