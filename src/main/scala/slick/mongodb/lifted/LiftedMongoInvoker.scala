@@ -3,7 +3,7 @@ package slick.mongodb.lifted
 import com.mongodb.DBObject
 import com.mongodb.casbah.commons.Imports._
 import slick.ast._
-import slick.mongodb.MongoInvoker
+import slick.mongodb.{CollectionNode, MongoInvoker}
 import slick.mongodb.direct.{GetResult, MongoBackend, TypedMongoCollection}
 import slick.util.ConstArray
 
@@ -19,6 +19,10 @@ trait GenericLiftedMongoInvoker[T]  {
         case nested:StructNode =>  ConstArray(x._1.name) ++ expand(nested)
         case p:ProductNode => p.children.map(_.asInstanceOf[Select].field.name)
         case field:Select => ConstArray(field.field.name)
+        case CollectionNode(_, f:Select) => ConstArray(f.field.name)
+        case t:TypeMapping => ConstArray("type mapping field")
+
+        case c:CollectionNode => ConstArray("zag dokumenty")
       }
       )
       attr

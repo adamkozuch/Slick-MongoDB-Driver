@@ -40,14 +40,13 @@ class Converter[R](t:Type) {
       case x => x
     })
 
-    val decoupled = extractValues(r)
+    val decoupled = extractValues(r).tail // we skip id
 
     def partialyTupleTransformed(list:List[_]):Any = list.map(x => x match {
       case y:List[_] => toTuple(partialyTupleTransformed(y).asInstanceOf[Seq[_]])
       case a => a
     })
 
-    val transformed = partialyTupleTransformed(decoupled) //this has to be transformed to my case classes
 
     def allTypesPrimitives(mappedScalaType: MappedScalaType): Boolean = {
       mappedScalaType.children(0).asInstanceOf[ProductType].elements.foreach(x => {
@@ -67,16 +66,17 @@ class Converter[R](t:Type) {
           val res = processProductType(s, values)
           res
         }
-        case n: ScalaNumericType[_]  => n
+        case n: ScalaNumericType[_]  => values(0)  // TODO making this case more generic
       }
     }
-    //zagniezdzona tablica prymitywow
+
     def processProductType(y:MappedScalaType, values:List[_]): Any  = {
       y.structural.children(0) match {
         case p: ProductType => {
           val deepConverted = for (idx <- 0 to p.elements.length - 1) yield
 
             p.elements(idx) match {
+                // iterate elements of product Mapped type or primitive
               case x: MappedScalaType => {
                 if (allTypesPrimitives(x)) {
                   x.mapper.toMapped(toTuple(values(idx).asInstanceOf[List[_]]))
@@ -84,7 +84,7 @@ class Converter[R](t:Type) {
                   processProductType(x, values(idx).asInstanceOf[List[_]])
                 }
               }
-              case y => { values.asInstanceOf[List[List[_]]](0)(idx) match {
+              case y => { values.asInstanceOf[List[_]](idx) match {
                 case list:ConstArray[_] => list
                 case v => v
               }}
@@ -96,16 +96,14 @@ class Converter[R](t:Type) {
       }
     }
 
+    // decoupled is different depending on calling from top level and nested level TODO
 
-    //    val some = myType.baseType.children
-    //    //primitive leave it as it is
-    //
-    //    val endType  = myType.mapper.toMapped((1,(10.0, "some info"))) // error here try to make recursion
-    //    val convertedTypes = myType.children(0).children.map(x => fun(x.toString, "22")) // here one after another
-
-    //    val endType = myType.mapper.toMapped(toTuple(convertedTypes))
-    //    endType.asInstanceOf[R]
-    val tttt = matchTypeWithValues(t, decoupled(1).asInstanceOf[List[_]]).asInstanceOf[R]
+    val tttt = {
+      if (decoupled.length > 1)
+        matchTypeWithValues(t, decoupled).asInstanceOf[R]
+      else
+        matchTypeWithValues(t, decoupled(0).asInstanceOf[List[_]]).asInstanceOf[R]  // TODO ugly hack change later
+    }
     tttt
   })
   }

@@ -9,41 +9,35 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /**
  * Created by adam on 10.07.15.
  */
-case class first(x: Int, secondLevel: second) extends doc.NewTerm
+case class top1(x:Int, secondLevel: second, arr:IndexedSeq[Double]) extends doc.NewTerm
+case class top2(secondLevel: second) extends doc.NewTerm
 case class second(c: Int, thirdLevel1:third2) extends doc.NewTerm
 case class third1(c: Int, g:Int) extends doc.NewTerm
-case class third2(c: Double, s: String) extends doc.NewTerm
+case class third2(c: Double, s: IndexedSeq[String]) extends doc.NewTerm
 case class fourth(c: Int, d: Int) extends doc.NewTerm
 
-class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocument") {
-
+class topLevel1(tags:Tag) extends Document[top1](tags,"topLevel1") {
   def x1 = field[Int]("primitiveFieldFirstLevel")
   def secondDoc = doc[secoundLevelDocument](tags)
-//  def arrOfString = array(field[String]("y"))
-  def * = (x1, secondDoc) <> (first.tupled, first.unapply)  // tutaj chodzi o to że dokument jest nested
+  def arrOfDouble = array(field[Double]("doubleArray"))
+  def * = (x1, secondDoc, arrOfDouble) <> (top1.tupled, top1.unapply)  // tutaj chodzi o to że dokument jest nested
+}
+
+class topLevel2(tags:Tag) extends Document[top2](tags,"topLevel2") {
+  def secondDoc = doc[secoundLevelDocument](tags)
+  def * = (secondDoc) <> (top2, top2.unapply)  // tutaj chodzi o to że dokument jest nested
 }
 
 class secoundLevelDocument(tag:Tag) extends SubDocument[second](tag,"secoundLevelDocument") {
-  type previousDocument = firstLevelDocument
   def x2 = field[Int]("primitiveFieldSecundLevel")
   def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
-  def thirdDoc1 = doc[thirdLevelDocument1](tag)
-  def thirdDoc2 = doc[thirdLevelDocument2](tag)
-  def * = (x2, thirdDoc2) <> (second.tupled, second.unapply)
+  def thirdDoc = doc[thirdLevelDocument2](tag)
+  def * = (x2, thirdDoc) <> (second.tupled, second.unapply)
 }
 
-class thirdLevelDocument1(tag:Tag) extends SubDocument[third1](tag,"thirdLevelDocument1") {
-//  type previousDocument = secoundLevelDocument
-  def x3 = field[Int]("primitiveFieldThirdLevel")
-  def dyn = field[Int]("DynamicprimitiveFieldThirdLevel")
-  def arrayOfFurthDoc = doc[fourthLevelDocument](tag)
-  def * = (x3, dyn) <> (third1.tupled, third1.unapply)
-}
-
-class thirdLevelDocument2(tag:Tag) extends SubDocument[third2](tag,"thirdLevelDocument2") {
-//  type previousDocument = secoundLevelDocument
+class thirdLevelDocument2(tag:Tag) extends SubDocument[third2](tag,"thirdLevelDocument") {
   def x3 = field[Double]("primitiveFieldThirdLevel11")
-  def x4 = field[String]("primitiveFieldThirdLevel22")
+  def x4 = array(field[String]("array of primitives"))
   def * = (x3, x4) <> (third2.tupled, third2.unapply)
 }
 
@@ -86,7 +80,8 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   implicit override val patienceConfig = PatienceConfig(timeout = Span(50, Seconds))
 
-  val documentQuery = TableQuery[firstLevelDocument]
+  val documentQuery1 = TableQuery[topLevel1]
+  val documentQuery2 = TableQuery[topLevel2]
 
 
   before {
@@ -95,52 +90,68 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   var db: Database = _
 
-  test("single value insert test")
+  test("single value insert test 1")
   {
-    val singleValueInsert = DBIO.seq(documentQuery +=
-      first(4,second(1,third2(10,"iiii")))
+    val singleValueInsert = DBIO.seq(documentQuery1 +=
+      top1(1, second(1,third2(10,IndexedSeq("John", "Smith"))), IndexedSeq(2.3, 7.8, 9.1))
     )
         lazy val result =  (db.run(singleValueInsert)).futureValue
     result
   }
 
-  test("multiple value insert test")
+  test("single value insert test 2")
   {
-        val multipleValueInsert = DBIO.seq(documentQuery ++=
+    val singleValueInsert = DBIO.seq(documentQuery2 +=
+      top2(second(1,third2(111,IndexedSeq("Adam", "Kozuch"))))
+    )
+    lazy val result =  (db.run(singleValueInsert)).futureValue
+    result
+  }
+
+  test("multiple value insert test 1 - document top1")
+  {
+        val multipleValueInsert = DBIO.seq(documentQuery1 ++=
           List(
-            first(4,second(1,third2(10,"iiii"))),
-            first(0,second(1,third2(10,"mmmm"))),
-            first(10,second(1,third2(10,"mmmm"))),
-            first(14,second(1,third2(10,"mmmm")))
+            top1(100,second(5,third2(10,IndexedSeq("ABC", "DEF"))), IndexedSeq(4.5, 3.0, 8.8, 1.6)),
+            top1(145,second(7,third2(19,IndexedSeq("IJK", "LMN"))), IndexedSeq(4.5, 9.0, 3.8, 7.6))
           ))
 
         lazy val result =  (db.run(multipleValueInsert)).futureValue
         result
   }
 
-  test("third level document select")
+  test("multiple value insert test 2 - document top2")
   {
-    lazy val result =  (db.run(documentQuery.map(x => x.secondDoc).result)).futureValue
-    result.foreach(x => print(x))
-  }
+    val multipleValueInsert = DBIO.seq(documentQuery2 ++=
+      List(
+        top2(second(5,third2(10,IndexedSeq("AAAA", "BBB")))),
+        top2(second(7,third2(19,IndexedSeq("CCC", "DDD"))))
+      ))
 
-  test("two level field select ")
-  {
-    lazy val result = ( db.run(documentQuery.map(x => x.secondDoc.x2).result).map(println)).futureValue
-    println("What kind of result " + result)
-  }
-
-  test("second level document select")
-  {
-    lazy  val result = ( db.run(documentQuery.map(x=>x.secondDoc.thirdDoc2).result)).futureValue
-    result.map(x => print(x.asInstanceOf[third2].c + "    "))
+    lazy val result =  (db.run(multipleValueInsert)).futureValue
+    result
   }
 
 
-  test("filter by nested field")
+  test("topLevel1 whole document no conditions")
   {
-    print("adam")
-    lazy val result = ( db.run(documentQuery.filter(x => x.x1 > 10 && x.x1 < 10).map(x => x.secondDoc.thirdDoc2).result)).futureValue
-    println(result)
+    val expected = Vector(
+      top1(1, second(1,third2(10,IndexedSeq("John", "Smith"))), IndexedSeq(2.3, 7.8, 9.1)),
+      top1(100,second(5,third2(10,IndexedSeq("ABC", "DEF"))), IndexedSeq(4.5, 3.0, 8.8, 1.6)),
+      top1(145,second(7,third2(19,IndexedSeq("IJK", "LMN"))), IndexedSeq(4.5, 9.0, 3.8, 7.6)))
+    lazy val result =  (db.run(documentQuery1.result)).futureValue
+
+    assert(result == expected)
+  }
+
+  test("topLevel2 whole document no conditions (chaninig case)")
+  {
+    val expected = Vector(
+      top2(second(1,third2(111,IndexedSeq("Adam", "Kozuch")))),
+      top2(second(5,third2(10,IndexedSeq("AAAA", "BBB")))),
+      top2(second(7,third2(19,IndexedSeq("CCC", "DDD")))))
+    lazy val result =  (db.run(documentQuery2.result)).futureValue
+
+    assert(result == expected)
   }
 }

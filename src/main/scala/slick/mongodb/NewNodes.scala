@@ -4,6 +4,7 @@ import slick.ast.Type._
 import slick.ast._
 import TypeUtil.typeToTypeUtil
 import Util._
+import slick.ast.OptionType.Primitive
 import slick.util.ConstArray
 
 /**
@@ -32,7 +33,7 @@ case class SubDocNode(termSymbol: TermSymbol, structNode: Node, select:Node,mapp
 case class CollectionNode(termSymbol: TermSymbol, node: Node)extends Node {
   type Self = CollectionNode
 
-  protected def buildType = ??? //CollectionType(c,t)
+  protected def buildType = Int //CollectionType(c,t)
 
   def children = ConstArray(node)
 
@@ -40,7 +41,11 @@ case class CollectionNode(termSymbol: TermSymbol, node: Node)extends Node {
 
   override protected[this] def rebuild(ch: ConstArray[Node]) =  CollectionNode(termSymbol,ch(0))
 
-  override protected[this] def withInferredType(scope: Scope, typeChildren: Boolean) = ???
+  override protected[this] def withInferredType(scope: Scope, typeChildren: Boolean) = {
+    val tpe = node.infer()
+    val coll = CollectionType(TypedCollectionTypeConstructor.seq, tpe.nodeType)
+    this :@ coll
+  }
 }
 
 

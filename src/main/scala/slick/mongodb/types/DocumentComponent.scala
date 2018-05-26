@@ -3,7 +3,7 @@ package slick.mongodb.types
 
 import slick.ast._
 import slick.lifted._
-import slick.mongodb.SubDocNode
+import slick.mongodb.{CollectionNode, SubDocNode}
 import slick.mongodb.lifted.MongoDriver
 import slick.relational.RelationalTableComponent
 import slick.util.ConstArray
@@ -32,7 +32,7 @@ trait DocumentComponent extends RelationalTableComponent {
      */
     def array[E, U](value: E)(implicit sh: Shape[_ <: FlatShapeLevel, E, U, E]): Query[E, U, IndexedSeq] = {
       val shaped = ShapedValue(value, sh).packedValue
-      new WrappingQuery[E, U, IndexedSeq](shaped.toNode, shaped) //todo shaped.toNode should be wrapped in array node
+      new WrappingQuery[E, U, IndexedSeq](CollectionNode(ElementSymbol(1), shaped.toNode), shaped) //todo shaped.toNode should be wrapped in array node
     }
 
     /**
@@ -42,9 +42,15 @@ trait DocumentComponent extends RelationalTableComponent {
       case Select(in,s) => s
       case SubDocNode(t,n,s,tm) => t
       case Ref(s) =>s
+      case CollectionNode(t, _) => t
+      case StructNode(elements) => elements(0)._1
+      case t:TypeMapping => new TermSymbol {
+        override def name: String = "t symbol"
+      }
     })
 
     //TODO this looks ugly. Refactor
+    // here I should look for solution
     override def toNode = tableTag match {
       case _: BaseTag =>
         val sym = new AnonSymbol
@@ -55,7 +61,7 @@ trait DocumentComponent extends RelationalTableComponent {
             StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children).force),
             Ref(sym),
             tableTag.taggedAs(Ref(sym)).*.toNode))
-      case t: RefTag => t.path
+      case t: RefTag => tableNode
     }
   }
 
