@@ -59,14 +59,14 @@ class Converter[R](t:Type) {
       return true
     }
 
-    def matchTypeWithValues(tp:Type, values:Vector[_]) = tp.children(0) match {
+    def matchTypeWithValues(tp:Type, values:Any) = tp.children(0) match {
 
       case x: NominalType => x.structuralView match {
         case s:MappedScalaType => {
-          val res = processProductType(s, values)
+          val res = processProductType(s, values.asInstanceOf[Vector[_]])
           res
         }
-        case n: ScalaNumericType[_]  => values(0)  // TODO making this case more generic
+        case n: ScalaNumericType[_]  => values  // TODO making this case more generic
         case c: CollectionType  => values
       }
     }
@@ -103,7 +103,7 @@ class Converter[R](t:Type) {
       if (decoupled.length > 1) // TODO this condition is wrong
         matchTypeWithValues(t, decoupled).asInstanceOf[R]
       else
-        matchTypeWithValues(t, decoupled(0).asInstanceOf[Vector[_]]).asInstanceOf[R]  // TODO ugly hack change later
+        matchTypeWithValues(t, decoupled(0)).asInstanceOf[R]  // TODO ugly hack change later
     }
     tttt
   })
