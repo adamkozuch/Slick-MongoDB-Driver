@@ -94,7 +94,7 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   test("single value insert test 1") {
     val singleValueInsert = DBIO.seq(documentQuery1 +=
-      top1(1, second(1, third2(10, IndexedSeq("John", "Smith"))), IndexedSeq(2.3, 7.8, 9.1))
+      top1(1, second(1, third(10, IndexedSeq("John", "Smith"))), IndexedSeq(2.3, 7.8, 9.1))
     )
     lazy val result = (db.run(singleValueInsert)).futureValue
     result
@@ -102,7 +102,7 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   test("single value insert test 2") {
     val singleValueInsert = DBIO.seq(documentQuery2 +=
-      top2(second(1, third2(111, IndexedSeq("Adam", "Kozuch"))))
+      top2(second(1, third(111, IndexedSeq("Adam", "Kozuch"))))
     )
     lazy val result = (db.run(singleValueInsert)).futureValue
     result
@@ -111,8 +111,8 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   test("multiple value insert test 1 - document top1") {
     val multipleValueInsert = DBIO.seq(documentQuery1 ++=
       List(
-        top1(100, second(5, third2(10, IndexedSeq("ABC", "DEF"))), IndexedSeq(4.5, 3.0, 8.8, 1.6)),
-        top1(145, second(7, third2(19, IndexedSeq("IJK", "LMN"))), IndexedSeq(4.5, 9.0, 3.8, 7.6))
+        top1(100, second(5, third(10, IndexedSeq("ABC", "DEF"))), IndexedSeq(4.5, 3.0, 8.8, 1.6)),
+        top1(145, second(7, third(19, IndexedSeq("IJK", "LMN"))), IndexedSeq(4.5, 9.0, 3.8, 7.6))
       ))
 
     lazy val result = (db.run(multipleValueInsert)).futureValue
@@ -122,8 +122,8 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
   test("multiple value insert test 2 - document top2") {
     val multipleValueInsert = DBIO.seq(documentQuery2 ++=
       List(
-        top2(second(5, third2(10, IndexedSeq("AAAA", "BBB")))),
-        top2(second(7, third2(19, IndexedSeq("CCC", "DDD"))))
+        top2(second(5, third(10, IndexedSeq("AAAA", "BBB")))),
+        top2(second(7, third(19, IndexedSeq("CCC", "DDD"))))
       ))
 
     lazy val result = (db.run(multipleValueInsert)).futureValue
@@ -133,9 +133,9 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   test("topLevel1 whole document no conditions") {
     val expected = Vector(
-      top1(1, second(1, third2(10, IndexedSeq("John", "Smith"))), IndexedSeq(2.3, 7.8, 9.1)),
-      top1(100, second(5, third2(10, IndexedSeq("ABC", "DEF"))), IndexedSeq(4.5, 3.0, 8.8, 1.6)),
-      top1(145, second(7, third2(19, IndexedSeq("IJK", "LMN"))), IndexedSeq(4.5, 9.0, 3.8, 7.6)))
+      top1(1, second(1, third(10, IndexedSeq("John", "Smith"))), IndexedSeq(2.3, 7.8, 9.1)),
+      top1(100, second(5, third(10, IndexedSeq("ABC", "DEF"))), IndexedSeq(4.5, 3.0, 8.8, 1.6)),
+      top1(145, second(7, third(19, IndexedSeq("IJK", "LMN"))), IndexedSeq(4.5, 9.0, 3.8, 7.6)))
     lazy val result = (db.run(documentQuery1.result)).futureValue
 
     assert(result == expected)
@@ -162,9 +162,9 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
 
   test("topLevel1 query nested document") {
     val expected = Vector(
-      second(1, third2(10, IndexedSeq("John", "Smith"))),
-      second(5, third2(10, IndexedSeq("ABC", "DEF"))),
-      second(7, third2(19, IndexedSeq("IJK", "LMN"))))
+      second(1, third(10, IndexedSeq("John", "Smith"))),
+      second(5, third(10, IndexedSeq("ABC", "DEF"))),
+      second(7, third(19, IndexedSeq("IJK", "LMN"))))
     lazy val result = (db.run(documentQuery1.map(x => x.secondDoc).result)).futureValue
     print(result)
 
