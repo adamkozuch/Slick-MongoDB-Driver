@@ -6,14 +6,12 @@ Scala client side code.
 # Slick version
 3.1.0-M1
 Following features are implemented: 
-## performing insert to collection to with nested documents
-## performing insert of array to collection
-## querying mongo collection with (now result is in raw form and there is ongoing work on converter to slick type)
-Features to be implemented:
-## converter from casbah type to slick type
+### performing insert of document that contains nested documents
+### performing insert of document that contains arrays of primitives 
+### querying mongo collection
+##
 
 Usage
-TODO compy unit test
 In order to use driver we need to do following imports in our project
 ```
 import slick.mongodb.lifted.MongoDriver.api._
@@ -23,38 +21,51 @@ import slick.mongodb.types.doc
 Defining documents
 Below I present sample usage of implemented features.
 ```
-case class first(x: Int, secondLevel: second, y: IndexedSeq[String]) extends doc.NewTerm
-case class second(c: Int, thirdLevel: third1, thirdLevel2:third2) extends doc.NewTerm
-case class third(c: Int, d: IndexedSeq[Int]) extends doc.NewTerm
+case class top1(x: Int, secondLevel: second, arr: IndexedSeq[Double]) extends doc.NewTerm
+case class top2(secondLevel: second) extends doc.NewTerm
+case class second(c: Int, thirdLevel1: third) extends doc.NewTerm
+case class third(c: Double, s: IndexedSeq[String]) extends doc.NewTerm
 ```
 For the client code we define case classes. Extending it with doc.NewTerm is a boilerplate
 which is expected to be removed in the future.
 Secondly defining of mapping is following
 ```
-class firstLevelDocument(tags:Tag) extends Document[first](tags,"firstLevelDocument") {
-
+class topLevel1(tags: Tag) extends Document[top1](tags, "topLevel1") {
   def x1 = field[Int]("primitiveFieldFirstLevel")
+
   def secondDoc = doc[secoundLevelDocument](tags)
-  def arrOfString = array(field[String]("y"))
-  def * = (x1, secondDoc, arrOfString) <> (first.tupled, first.unapply)
+
+  def arrOfDouble = array(field[Double]("doubleArray"))
+
+  def * = (x1, secondDoc, arrOfDouble) <> (top1.tupled, top1.unapply) // tutaj chodzi o to że dokument jest nested
 }
 
-class secoundLevelDocument(tag:Tag) extends SubDocument[second](tag,"secoundLevelDocument") {
-  type previousDocument = firstLevelDocument
-  def x2 = field[Int]("primitiveFieldSecundLevel")
-  def thirdDoc1 = doc[thirdLevelDocument1](tag)
-  def thirdDoc2 = doc[thirdLevelDocument2](tag)
-  def * = (x2, thirdDoc1, thirdDoc2) <> (second.tupled, second.unapply)
+class topLevel2(tags: Tag) extends Document[top2](tags, "topLevel2") {
+  def secondDoc = doc[secoundLevelDocument](tags)
+
+  def * = (secondDoc) <> (top2, top2.unapply) // tutaj chodzi o to że dokument jest nested
 }
 
-class thirdLevelDocument(tag:Tag) extends SubDocument[third](tag,"thirdLevelDocument") {
-  type previousDocument = secoundLevelDocument
-  def x3 = field[Int]("primitiveFieldThirdLevel")
-  def arrOfInt = array(field[Int]("primitiveInt"))
-  def * = (x3, arrayOfFurthDoc) <> (third1.tupled, third1.unapply)
+class secoundLevelDocument(tag: Tag) extends SubDocument[second](tag, "secoundLevelDocument") {
+  def x2 = field[Int]("primitiveFieldSecundLevel")  
+
+  def arrOfInt = array(field[Int]("PrimitiveFieldFourthLevelForArray"))
+
+  def thirdDoc = doc[thirdLevelDocument](tag)
+
+  def * = (x2, thirdDoc) <> (second.tupled, second.unapply)
+}
+
+class thirdLevelDocument(tag: Tag) extends SubDocument[third](tag, "thirdLevelDocument") {
+  def x3 = field[Double]("primitiveFieldThirdLevel11")
+
+  def x4 = array(field[String]("array of primitives"))
+
+  def * = (x3, x4) <> (third.tupled, third.unapply)
 }
 ```
+For more I encourage you to look at the following test: 
 
 First difference is that we use data type Document instead of Table. This is top level
 data structure that representing collection in mongo. Next we are using class SubDocument 
-which representing nested documents in mongo. Also mapping works for collections.
+which representing nested documents in mongo. Also mapping works for collections of primitives (in plans there is support for collections of documents).
