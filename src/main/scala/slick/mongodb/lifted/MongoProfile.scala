@@ -3,25 +3,26 @@ package slick.mongodb.lifted
 import slick.mongodb.compiler._
 import slick.mongodb.types.DocumentComponent
 
-
 import scala.language.{higherKinds, implicitConversions}
 import slick.ast._
+import slick.basic.FixedBasicStreamingAction
 import slick.compiler.QueryCompiler
-import slick.lifted.{QueryBase, RepShape, Query}
+import slick.dbio.Effect
+import slick.lifted.{Query, QueryBase, RepShape}
 import slick.mongodb.direct.MongoBackend
-import slick.profile.{ RelationalDriver, RelationalProfile}
+import slick.relational.RelationalProfile
 
 // TODO: split into traits?
-trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent with MongoTypesComponent with MongoActionComponent with DocumentComponent with RelationalDriver
+trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent with MongoTypesComponent with MongoActionComponent with DocumentComponent
 { driver: MongoDriver =>
   type Backend = MongoBackend
   val backend = MongoBackend
-  override val Implicit: Implicits = simple
-  override val simple: SimpleQL  = new SimpleQL {}
+  val Implicit: Implicits = simple
+  val simple: SimpleQL  = new SimpleQL {}
   override val api = new API{}
   override val profile =this
 
-  protected trait CommonImplicits extends super.CommonImplicits with ImplicitColumnTypes
+  protected trait CommonImplicits extends ImplicitColumnTypes
 
   trait API extends super.API with CommonImplicits
 {
@@ -33,7 +34,7 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
 
 }
 
-  trait SimpleQL extends super.SimpleQL with Implicits
+  trait SimpleQL extends Implicits
 
   // TODO: extend for complicated node structure, probably mongodb nodes should be used
   /** (Partially) compile an AST for insert operations */
@@ -62,25 +63,28 @@ trait MongoProfile extends RelationalProfile with MongoInsertInvokerComponent wi
     override implicit def stringColumnType: BaseColumnType[String] = ScalaBaseType.stringType
   }
 
-  trait Implicits extends super.Implicits with ImplicitColumnTypes{
-    override implicit def ddlToDDLInvoker(d: SchemaDescription): DDLInvoker = createDDLInvoker(d)
+  trait Implicits extends ImplicitColumnTypes{
+//    override implicit def ddlToDDLInvoker(d: SchemaDescription): DDLInvoker = createDDLInvoker(d)
     implicit def queryToLiftedMongoInvoker[T,C[_]](q: Query[_,T,C])(implicit session: MongoBackend#Session): LiftedMongoInvoker[T] =
       new LiftedMongoInvoker[T](queryCompiler.run(q.toNode).tree,session)
   }
 
 /////////////////////////////////////////////////QueryExecutor//////////////////////////////////////////
   /** Create an executor -- this method should be implemented by drivers as needed */
-  override type QueryExecutor[T] =  QueryExecutorDef[T]
-  override def createQueryExecutor[R](tree: Node, param: Any): QueryExecutor[R] = ???
+//  override type QueryExecutor[T] =  QueryExecutorDef[T]
+//  def createQueryExecutor[R](tree: Node, param: Any): QueryExecutor[R] = ???
 
 
   // TODO: not required for MongoDB:
   /** Create a DDLInvoker -- this method should be implemented by drivers as needed */
-  override def createDDLInvoker(ddl: SchemaDescription): DDLInvoker = throw new UnsupportedOperationException("Mongo driver doesn't support ddl operations.")
+//  override def createDDLInvoker(ddl: SchemaDescription): DDLInvoker = throw new UnsupportedOperationException("Mongo driver doesn't support ddl operations.")
 
   override type SchemaDescription = SchemaDescriptionDef
   override def buildSequenceSchemaDescription(seq: Sequence[_]): SchemaDescription = ???
   override def buildTableSchemaDescription(table: Table[_]): SchemaDescription = ???
+  override def runSynchronousQuery[R](tree: CompiledInsert, param: Any)(implicit session: MongoBackend#SessionDef) = ???
+
+  type StreamingProfileAction[+R, +T, -E <: Effect] = FixedBasicStreamingAction[R, T, E]
 }
 
 // TODO: make it a class?

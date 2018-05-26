@@ -1,19 +1,19 @@
 package slick.mongodb.lifted
 
-import com.mongodb.casbah.Imports._
-import com.mongodb.casbah.MongoCollection
-import com.mongodb.casbah.commons.MongoDBObject
 import slick.SlickException
 import slick.ast.Type.Structural
 import slick.ast.TypeUtil.:@
 import slick.ast._
+
 
 import slick.dbio.{Streaming, SynchronousDatabaseAction, Effect, NoStream}
 import slick.jdbc.JdbcBackend
 
 import slick.mongodb.{MongoQueryNode, MongoInvoker}
 import slick.mongodb.direct.{GetResult, TypedMongoCollection, TypedMongoCursor, MongoBackend}
-import slick.profile.{FixedSqlAction, FixedBasicAction, FixedBasicStreamingAction, RelationalActionComponent}
+import slick.relational. RelationalActionComponent
+import slick.sql.{FixedSqlAction}
+import slick.basic.{FixedBasicAction, FixedBasicStreamingAction}
 
 import slick.util._
 
@@ -30,7 +30,7 @@ trait MongoActionComponent extends RelationalActionComponent {
   driver: MongoDriver =>
 
   type SchemaActionExtensionMethods = SchemaActionExtensionMethodsImpl
-  type DriverAction[+R, +S <: NoStream, -E <: Effect] = FixedBasicAction[R, S, E]
+  type ProfileAction[+R, +S <: NoStream, -E <: Effect] = FixedBasicAction[R, S, E]
 
   ///////////////////////////////////////////QueryActionExtension///////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////
@@ -50,17 +50,18 @@ trait MongoActionComponent extends RelationalActionComponent {
 
               val q = new CreateQuery
               val p = new CreateProjection
-              val  query = q.mongoQuery(mq)
+              val query = q.mongoQuery(mq)
+
               val projection = p.createProjection(mq)
 
               val converter  = new Converter[R](ct)
 
               val name  = mq.collect({case t:TableNode => t})(0).tableName
               val coll = new TypedMongoCollection[R](name)(ctx.session, converter.converter)
-              val coursor =  coll.find(query.get,projection.get)
+              val cursor = coll.find(query.get.result().asDBObject, projection.get)
               
               val b = ct.cons.createBuilder(ct.elementType.classTag).asInstanceOf[Builder[R, R]]
-              coursor.foreach(x => b += x)
+              cursor.foreach(x => b += x)
               b.result()
             }
         override def createInvoker(session: MongoBackend#Session):LiftedMongoInvoker[R] = ??? //LiftedMongoInvoker[R](rsm)(session)
@@ -114,7 +115,7 @@ trait MongoActionComponent extends RelationalActionComponent {
     new StreamingQueryActionExtensionMethodsImpl[R, T](tree, param)
 
   class StreamingQueryActionExtensionMethodsImpl[R, T](tree: Node, param: Any) extends QueryActionExtensionMethodsImpl[R, Streaming[T]](tree, param) with super.StreamingQueryActionExtensionMethodsImpl[R, T] {
-    override def result: StreamingDriverAction[R, T, Effect.Read] = super.result.asInstanceOf[StreamingDriverAction[R, T, Effect.Read]]
+    override def result: StreamingProfileAction[R, T, Effect.Read] = super.result.asInstanceOf[StreamingProfileAction[R, T, Effect.Read]]
   }
 
 

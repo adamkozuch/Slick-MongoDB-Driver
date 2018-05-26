@@ -5,7 +5,6 @@ import com.mongodb.casbah.commons.Imports._
 import com.mongodb.casbah.commons.MongoDBObject
 import slick.ast._
 import slick.mongodb.MongoQueryNode
-import slick.mongodb.direct.MongoBackend
 
 /**
  * Created by adam on 20.08.15.
@@ -31,16 +30,16 @@ import slick.mongodb.lifted.CreateQuery._
       val orClauses = arguments.map{node => appendQueryParameterFromNode(node,new MongoDBObject)}
       query.++(($or,orClauses))
     case Apply(Library.==,arguments) =>
-      val (attributeName,value) = singleArgumentFunctionParameters(arguments)
+      val (attributeName,value) = singleArgumentFunctionParameters(arguments.toArray.toSeq)
       query.++((attributeName,value))
     case Apply(Library.In,arguments) =>
-      val (attributeName, parameters) = multipleArgumentFunctionParameters(arguments)
+      val (attributeName, parameters) = multipleArgumentFunctionParameters(arguments.toArray.toSeq)
       query.++((attributeName,MongoDBObject($in -> parameters)))
     case Apply(operator: Library.SqlOperator,arguments) if supportedComparisonOperators.contains(operator) =>
-      val (attributeName,value) = singleArgumentFunctionParameters(arguments)
+      val (attributeName,value) = singleArgumentFunctionParameters(arguments.toArray.toSeq)
       val comparisonOperator = SQLToMongoOperatorsMapping(operator)
       addComplexAttribute(query,attributeName,MongoDBObject(comparisonOperator -> value))
-    case Apply(operatorNot: Library.SqlOperator,nArguments) if operatorNot == Library.Not && nArguments.size == 1 =>
+    case Apply(operatorNot: Library.SqlOperator,nArguments) if operatorNot == Library.Not && nArguments.length == 1 =>
       appendNegatedParameterFromNode(nArguments(0),query)
   }
 
@@ -56,16 +55,16 @@ import slick.mongodb.lifted.CreateQuery._
       val orClauses = arguments.map{node => appendQueryParameterFromNode(node,new MongoDBObject)}
       query.++(($nor,orClauses))
     case Apply(Library.==,arguments) =>
-      val (attributeName,value) = singleArgumentFunctionParameters(arguments)
+      val (attributeName,value) = singleArgumentFunctionParameters(arguments.toArray.toSeq)
       query.++((attributeName,MongoDBObject($ne -> value)))
     case Apply(Library.In,arguments) =>
-      val (attributeName,parameters) = multipleArgumentFunctionParameters(arguments)
+      val (attributeName,parameters) = multipleArgumentFunctionParameters(arguments.toArray.toSeq)
       query.++((attributeName,MongoDBObject($nin -> parameters)))
     case Apply(operator: Library.SqlOperator,arguments) if supportedComparisonOperators.contains(operator) =>
-      val (attributeName,value) = singleArgumentFunctionParameters(arguments)
+      val (attributeName,value) = singleArgumentFunctionParameters(arguments.toArray.toSeq)
       val comparisonOperator = SQLToMongoOperatorsMapping(operator)
       query.++((attributeName,MongoDBObject($not -> MongoDBObject(comparisonOperator -> value))))
-    case Apply(Library.Not,arguments) if arguments.size == 1 =>
+    case Apply(Library.Not,arguments) if arguments.length == 1 =>
       appendQueryParameterFromNode(arguments(0),query)
   }
 
@@ -83,7 +82,7 @@ import slick.mongodb.lifted.CreateQuery._
     val parameters = arguments(1).asInstanceOf[ProductNode].children.map {case LiteralNode(v)=>v}
     println(s"attributeName=$attributeName")
     println(s"value=$parameters")
-    (attributeName,parameters)
+    (attributeName,parameters.toArray.toSeq)
   }
 
   def addComplexAttribute(dbObject: MongoDBObject,attributeName: String,value: MongoDBObject):MongoDBObject = dbObject.get(attributeName) match{

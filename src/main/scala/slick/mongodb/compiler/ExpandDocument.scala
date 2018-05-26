@@ -1,7 +1,7 @@
 package slick.mongodb.compiler
 
 import slick.ast._
-import slick.compiler.{WellTyped, Phase, CompilerState}
+import slick.compiler.{ Phase, CompilerState}
 import Util._
 import TypeUtil._
 
@@ -27,7 +27,7 @@ class ExpandDocument extends Phase {
     Type from columns in TableExpansion is a type of Document
      */
     val structs = from2.collect {
-      case TableExpansion(_, TableNode(_, _, sym, _, _), c) => (sym -> c.nodeType)
+      case TableExpansion(_, TableNode(_, _, sym, _), c) => (sym -> c.nodeType)
     }.toMap
 
     /**

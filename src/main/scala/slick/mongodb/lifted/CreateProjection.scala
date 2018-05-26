@@ -3,7 +3,9 @@ package slick.mongodb.lifted
 import com.mongodb.casbah.commons.Imports._
 import com.mongodb.casbah.commons.MongoDBObject
 import slick.ast._
-import slick.mongodb.MongoQueryNode
+import slick.ast.TableNode
+import slick.mongodb.{CollectionNode, MongoQueryNode}
+import slick.util.ConstArray
 
 /**
  * Created by adam on 20.08.15.
@@ -13,13 +15,16 @@ import slick.mongodb.MongoQueryNode
 class CreateProjection {
 
   /** Class extracts parameters for projection*/
-  def createProjection(tree:Node): Option[MongoDBObject] = tree match {
+  def createProjection(tree:Node): Option[DBObject] = tree match {
     case MongoQueryNode(_,f,Pure(s,_),_,_,_,_)  =>
 
-     val projections=  s match {
+     val projections :ConstArray[Node]= s match {
         case p:ProductNode => p.children
-        case s:Select => List(s)
+        case s:Select => ConstArray(s)
+        case r:Ref => ConstArray.empty
+        case c:CollectionNode => ConstArray(c.node)
       }
+
       def singleArgumentFunctionParameters(argument: Node):(String,Any) = {
         val attributeName = (argument match {case FwdPath(_ :: w)=>w}).iterator.mkString("",".","")
         println(s"attributeName=$attributeName")
@@ -31,6 +36,7 @@ class CreateProjection {
         case h:: Nil => q ++ singleArgumentFunctionParameters(h)
         case Nil => q
       }
-      Some(addProjections(projections.toList,new MongoDBObject()))
+      Some(addProjections(ConstArray.unapplySeq(projections).get.toList,new BasicDBObject()))
+    case m:MongoQueryNode => Some(DBObject())
   }
 }
