@@ -2,13 +2,8 @@ package slick.mongodb.lifted
 
 import slick.ast._
 import slick.mongodb.direct.GetResult
-import cats.syntax.either._
 import com.mongodb.{BasicDBList, BasicDBObject, DBObject}
 import com.mongodb.casbah.commons.MongoDBObject
-import io.circe._
-import io.circe.parser._
-import io.circe._
-import io.circe.generic.semiauto._
 import slick.util.ConstArray
 
 /**
@@ -16,7 +11,6 @@ import slick.util.ConstArray
  */
 class Converter[R](t:Type) {
   val converter: GetResult[R] ={ GetResult[R](r => {
-    val indexedSeqLike = r.toIndexedSeq
 
     def toTuple(seq: Seq[_]): Product = {
       val clz = Class.forName("scala.Tuple" + seq.size)
@@ -31,12 +25,11 @@ class Converter[R](t:Type) {
     })
 
     def decoupleBasicObject(obj:DBObject): Vector[AnyRef] = obj.toMap().values().toArray.toVector.map(x => x match {
-      case yy :BasicDBList => {
-       val some =  yy.toArray.toVector
+      case dbl :BasicDBList => {
+       val some = dbl.toArray.toVector
         some
       }
       case z: DBObject => decoupleBasicObject(z)
-        // here I need to deal also with lists
       case x => x
     })
 
@@ -69,6 +62,17 @@ class Converter[R](t:Type) {
         case n: ScalaNumericType[_]  => values  // TODO making this case more generic
         case c: CollectionType  => values
       }
+      case c:CollectionType => c.elementType match {
+        case x: NominalType => x.structuralView match {
+          case s:MappedScalaType => {
+            val res = processProductType(s, values.asInstanceOf[Vector[_]])
+            res
+          }
+          case n: ScalaNumericType[_]  => values  // TODO making this case more generic
+          case c: CollectionType  => values
+        }
+
+      }
     }
 
     def processProductType(y:MappedScalaType, values:Vector[_]): Any  = {
@@ -77,7 +81,7 @@ class Converter[R](t:Type) {
           val deepConverted = for (idx <- 0 to p.elements.length - 1) yield
 
             p.elements(idx) match {
-                // iterate elements of product Mapped type or primitive
+              // iterate elements of product Mapped type or primitive
               case x: MappedScalaType => {
                 if (allTypesPrimitives(x)) {
                   x.mapper.toMapped(toTuple(values(idx).asInstanceOf[Vector[_]]))
@@ -85,15 +89,18 @@ class Converter[R](t:Type) {
                   processProductType(x, values(idx).asInstanceOf[Vector[_]])
                 }
               }
-              case y => { values.asInstanceOf[Vector[_]](idx) match {
-                case list:ConstArray[_] => list
-                case v => v
-              }}
+              case y => {
+                values.asInstanceOf[Vector[_]](idx) match {
+                  case list: ConstArray[_] => list
+                  case v => v
+                }
+              }
             }
 
           val tupled = toTuple(deepConverted)
           y.mapper.toMapped(tupled)
         }
+        case c:MappedScalaType  => y.mapper.toMapped(processProductType(c, values))
       }
     }
 
