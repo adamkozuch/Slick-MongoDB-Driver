@@ -6,6 +6,8 @@ scalaVersion := "2.12.4"
 
 val circleVersion = "0.9.1"
 
+fork in Test := true
+javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:+CMSClassUnloadingEnabled")
 libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick" % "3.2.3",
   "org.slf4j" % "slf4j-nop" % "1.6.4",
