@@ -68,7 +68,16 @@ class Converter[R](t:Type) {
             case x => x
           }
         }
-        case c: CollectionType  => values
+        case c: CollectionType => {
+          def extract(v:Vector[_]):Any = v(0) match { // making generic for base types
+            case c:Vector[_] => extract(c)
+            case x => v
+          }
+          values.asInstanceOf[Vector[_]](0) match {
+            case v:Vector[_] => extract(v)
+            case x => values
+          }
+        }
       }
       case c:CollectionType => c.elementType match {
         case x: NominalType => x.structuralView match {
