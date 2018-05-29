@@ -24,7 +24,6 @@ trait MongoInsertInvokerComponent { driver: MongoDriver =>
     val binder: Product => MongoDBObject = { p: Product =>
       val coll = attributeNames
       var counter = 0;
-      // find better way to do that TODO
       def joinAttributes(p:Any):List[Any] = p.asInstanceOf[Product].productIterator.toList.map(
         x => x match {
 
