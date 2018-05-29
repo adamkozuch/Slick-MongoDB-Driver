@@ -171,11 +171,33 @@ class test extends FunSuite with BeforeAndAfter with ScalaFutures {
     assert(result == expected)
   }
 
+  test("topLevel1 query nested primitive array")
+  {
+    val expected = Vector(
+      IndexedSeq("Adam", "Kozuch"),
+      IndexedSeq("AAAA", "BBB"),
+      IndexedSeq("CCC", "DDD"))
+    lazy val result =  (db.run(documentQuery1.map(x => x.secondDoc.thirdDoc.x4).result)).futureValue
+
+    assert(result == expected)
+  }
+
   test("topLevel1 checking number of documnents after filter") {
     lazy val result = (db.run(documentQuery1.filter(x => x.secondDoc.x2 <= 5).map(x => x.arrOfDouble).result)).futureValue
     print(result)
 
     assert(result.length == 2)
+  }
+
+  test("topLevel1 query nested primitive field")
+  {
+    val expected = Vector(
+      111,
+      10,
+      19)
+    lazy val result =  (db.run(documentQuery1.map(x => x.secondDoc.thirdDoc.x3).result)).futureValue
+
+    assert(result == expected)
   }
 
     test("topLevel2 whole document no conditions (chaninig case)")
@@ -204,9 +226,9 @@ class test extends FunSuite with BeforeAndAfter with ScalaFutures {
     test("topLevel2 query nested primitive field")
     {
       val expected = Vector(
-        second(1,third(111,IndexedSeq("Adam", "Kozuch"))),
-        second(5,third(10,IndexedSeq("AAAA", "BBB"))),
-        second(7,third(19,IndexedSeq("CCC", "DDD"))))
+        1,
+        5,
+        7)
       lazy val result =  (db.run(documentQuery2.map(x => x.secondDoc.x2).result)).futureValue
   
       assert(result == expected)
