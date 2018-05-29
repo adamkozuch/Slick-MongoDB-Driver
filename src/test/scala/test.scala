@@ -9,13 +9,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /**
   * Created by adam on 10.07.15.
   */
-case class top1(x: Int, secondLevel: second, arr: IndexedSeq[Double]) extends doc.NewTerm
+case class top1(x: Int, secondLevel: second, arr: IndexedSeq[Double])
 
-case class top2(secondLevel: second) extends doc.NewTerm
+case class top2(secondLevel: second)
 
-case class second(c: Int, thirdLevel1: third) extends doc.NewTerm
+case class second(c: Int, thirdLevel1: third)
 
-case class third(c: Double, s: IndexedSeq[String]) extends doc.NewTerm
+case class third(c: Double, s: IndexedSeq[String])
 
 class topLevel1(tags: Tag) extends Document[top1](tags, "topLevel1") {
   def x1 = field[Int]("primitiveFieldFirstLevel")
@@ -78,7 +78,7 @@ class thirdLevelDocument(tag: Tag) extends SubDocument[third](tag, "thirdLevelDo
 //}
 
 
-class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures {
+class test extends FunSuite with BeforeAndAfter with ScalaFutures {
 
   implicit override val patienceConfig = PatienceConfig(timeout = Span(50, Seconds))
 
@@ -178,14 +178,57 @@ class nestedStructureTest extends FunSuite with BeforeAndAfter with ScalaFutures
     assert(result.length == 2)
   }
 
-  //  test("topLevel2 whole document no conditions (chaninig case)")
-  //  {
-  //    val expected = Vector(
-  //      top2(second(1,third2(111,IndexedSeq("Adam", "Kozuch")))),
-  //      top2(second(5,third2(10,IndexedSeq("AAAA", "BBB")))),
-  //      top2(second(7,third2(19,IndexedSeq("CCC", "DDD")))))
-  //    lazy val result =  (db.run(documentQuery2.result)).futureValue
-  //
-  //    assert(result == expected)
-  //  }
+    test("topLevel2 whole document no conditions (chaninig case)")
+    {
+      val expected = Vector(
+        top2(second(1,third(111,IndexedSeq("Adam", "Kozuch")))),
+        top2(second(5,third(10,IndexedSeq("AAAA", "BBB")))),
+        top2(second(7,third(19,IndexedSeq("CCC", "DDD")))))
+      lazy val result =  (db.run(documentQuery2.result)).futureValue
+  
+      assert(result == expected)
+    }
+
+    test("topLevel2 query nested document")
+    {
+      val expected = Vector(
+        second(1,third(111,IndexedSeq("Adam", "Kozuch"))),
+        second(5,third(10,IndexedSeq("AAAA", "BBB"))),
+        second(7,third(19,IndexedSeq("CCC", "DDD"))))
+      lazy val result =  (db.run(documentQuery2.map(x => x.secondDoc).result)).futureValue
+
+      print(result)
+      assert(result == expected)
+    }
+
+    test("topLevel2 query nested primitive field")
+    {
+      val expected = Vector(
+        second(1,third(111,IndexedSeq("Adam", "Kozuch"))),
+        second(5,third(10,IndexedSeq("AAAA", "BBB"))),
+        second(7,third(19,IndexedSeq("CCC", "DDD"))))
+      lazy val result =  (db.run(documentQuery2.map(x => x.secondDoc.x2).result)).futureValue
+  
+      assert(result == expected)
+    }
+
+    test("topLevel2 query nested primitive field - 2")
+    {
+      val expected = Vector(
+        111, 10, 19)
+      lazy val result =  (db.run(documentQuery2.map(x => x.secondDoc.thirdDoc.x3).result)).futureValue
+  
+      assert(result == expected)
+    }
+
+    test("topLevel2 query nested primitive array")
+    {
+      val expected = Vector(
+        ("Adam", "Kozuch"),
+        ("AAAA", "BBB"),
+        ("CCC", "DDD"))
+      lazy val result =  (db.run(documentQuery2.map(x => x.secondDoc.thirdDoc.x4).result)).futureValue
+  
+      assert(result == expected)
+    }
 }
