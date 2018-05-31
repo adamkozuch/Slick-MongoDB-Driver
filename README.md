@@ -62,4 +62,6 @@ The first difference compares to relational Slick is that we use datatype Docume
 data structure that representing collection in mongo. Next, we are using class SubDocument which representing nested documents in mongo. We use 'field' method for defining primitive values in our mapping. 
 We use 'array' for defining collections of primitives. 'doc' is used for defining nested documents in mapping.
 
+For now project can be only used as a Github dependency.
+
 The project is in the very early stage. If you happen to use it please write an issue or give me some feedback about it.
