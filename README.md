@@ -27,13 +27,14 @@ In order to use driver we need to do following imports in our project
 import slick.mongodb.lifted.MongoDriver.api._
 import slick.lifted.{ProvenShape, Tag}
 ```
-Defining documents
-Below I present sample usage of implemented features.
+Defining documents 
+Below presented sample usage of implemented features. First we have to define 
+client side case classes.
 ```
 case class top(x: Int, secondLevel: second, arr: IndexedSeq[Double])
 case class nested(nestedArray: IndexedSeq[String], nestedPrimitive: Int)
 ```
-Secondly defining of mapping is following
+Secondly we have to define documents.
 ```
 class topLevel(tags: Tag) extends Document[top](tags, "collectionName") {
   def x1 = field[Int]("primitiveFieldFirstLevel")
