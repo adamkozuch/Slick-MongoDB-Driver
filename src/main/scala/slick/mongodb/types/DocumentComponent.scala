@@ -54,11 +54,18 @@ trait DocumentComponent extends RelationalTableComponent {
     override def toNode = tableTag match {
       case _: BaseTag =>
         val sym = new AnonSymbol
+        val y =tableTag.taggedAs(Ref(sym)).*.toNode
+        val x =(collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children).force
+        val myVal = y match {
+          case TypeMapping(p:ProductNode,_,_) => (collectSymbols(tableTag, sym) zip p.children).force
+          case TypeMapping(s:SubDocNode,_,_) => ConstArray((s.termSymbol, s))
+        }
+
         TableExpansion(
           sym,
           tableNode,
           SubDocNode(sym,
-            StructNode((collectSymbols(tableTag,sym) zip  tableTag.taggedAs(Ref(sym)).*.toNode.children(0).children).force),
+            StructNode(myVal),
             Ref(sym),
             tableTag.taggedAs(Ref(sym)).*.toNode))
       case t: RefTag => tableNode

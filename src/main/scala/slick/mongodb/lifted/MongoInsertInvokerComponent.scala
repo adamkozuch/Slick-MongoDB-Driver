@@ -23,16 +23,9 @@ trait MongoInsertInvokerComponent { driver: MongoDriver =>
     /** Used to convert specified type to DBObject */
     val binder: Product => MongoDBObject = { p: Product =>
       val coll = attributeNames
-//      var coll = scala.collection.mutable.ArrayBuffer(attr)
       var counter = 0;
-      // find better way to do that TODO
-      def joinAttributes(p:doc.NewTerm):List[Any] = p.asInstanceOf[Product].productIterator.toList.map(
+      def joinAttributes(p:Any):List[Any] = p.asInstanceOf[Product].productIterator.toList.map(
         x => x match {
-          case x:doc.NewTerm => {
-            var s = coll(counter)
-            counter = counter + 1
-            s -> MongoDBObject(joinAttributes(x).asInstanceOf[List[(String, Any)]])
-          }
 
           case v:Vector[_] => {
             var s = coll(counter)
@@ -40,15 +33,45 @@ trait MongoInsertInvokerComponent { driver: MongoDriver =>
             (s, v)
           }
 
-          case y:Any => {
+          case y:Boolean => {
             var s = coll(counter)
             counter = counter + 1
             (s, y)
           }
+
+          case y:Double => {
+            var s = coll(counter)
+            counter = counter + 1
+            (s, y)
+          }
+
+          case y:Integer => {
+            var s = coll(counter)
+            counter = counter + 1
+            (s, y)
+          }
+
+          case y:Long => {
+            var s = coll(counter)
+            counter = counter + 1
+            (s, y)
+          }
+
+          case y:String => {
+            var s = coll(counter)
+            counter = counter + 1
+            (s, y)
+          }
+
+          case x:Any => { // assuming that it matches document
+            var s = coll(counter)
+            counter = counter + 1
+            s -> MongoDBObject(joinAttributes(x).asInstanceOf[List[(String, Any)]])
+          }
         }
       )
 
-      val valuesWithAttribues = joinAttributes(p.asInstanceOf[doc.NewTerm])
+      val valuesWithAttribues = joinAttributes(p)
 
       MongoDBObject(valuesWithAttribues.asInstanceOf[List[(String, Any)]])
     }

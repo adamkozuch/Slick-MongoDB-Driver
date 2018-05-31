@@ -20,9 +20,9 @@ trait GenericLiftedMongoInvoker[T]  {
         case p:ProductNode => p.children.map(_.asInstanceOf[Select].field.name)
         case field:Select => ConstArray(field.field.name)
         case CollectionNode(_, f:Select) => ConstArray(f.field.name)
-        case t:TypeMapping => ConstArray("type mapping field")
+        case TypeMapping(ch,_,_) => ConstArray.from(ch.children.map(_.asInstanceOf[Select].field.name).asInstanceOf[Array[String]])
 
-        case c:CollectionNode => ConstArray("zag dokumenty")
+        case c: CollectionNode => ConstArray(c.termSymbol.name)
       }
       )
       attr

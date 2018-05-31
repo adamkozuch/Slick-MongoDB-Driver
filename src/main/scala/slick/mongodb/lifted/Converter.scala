@@ -11,7 +11,6 @@ import slick.util.ConstArray
  */
 class Converter[R](t:Type) {
   val converter: GetResult[R] ={ GetResult[R](r => {
-
     def toTuple(seq: Seq[_]): Product = {
       val clz = Class.forName("scala.Tuple" + seq.size)
       clz.getConstructors()(0).newInstance(seq.map(_.asInstanceOf[AnyRef]): _*).asInstanceOf[Product]
@@ -59,8 +58,26 @@ class Converter[R](t:Type) {
           val res = processProductType(s, values.asInstanceOf[Vector[_]])
           res
         }
-        case n: ScalaNumericType[_]  => values  // TODO making this case more generic
-        case c: CollectionType  => values
+        case n: ScalaNumericType[_]  => {
+          def extract(v:Vector[_]):Any = v(0) match { // making generic for base types
+            case v:Vector[_] => extract(v)
+            case x => x
+          }
+          values match {
+            case v:Vector[_] =>  extract(v)
+            case x => x
+          }
+        }
+        case c: CollectionType => {
+          def extract(v:Vector[_]):Any = v(0) match { // making generic for base types
+            case c:Vector[_] => extract(c)
+            case x => v
+          }
+          values.asInstanceOf[Vector[_]](0) match {
+            case v:Vector[_] => extract(v)
+            case x => values
+          }
+        }
       }
       case c:CollectionType => c.elementType match {
         case x: NominalType => x.structuralView match {
@@ -112,6 +129,7 @@ class Converter[R](t:Type) {
       else
         matchTypeWithValues(t, decoupled(0)).asInstanceOf[R]  // TODO ugly hack change later
     }
+
     tttt
   })
   }
