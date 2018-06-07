@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/adamkozuch/Slick-MongoDB-Driver.svg?branch=master)](https://travis-ci.org/adamkozuch/Slick-MongoDB-Driver)
 # Slick-MongoDB-Driver (experimental)
 Slick driver for mongodb. Continuation of a https://github.com/dvinokurov/slick/tree/tmp/mongodb project.
-In this project we have developed Document and SumDocument data structures which enables mapping between mongodb collection and  Scala client-side code.
+In this project we have developed Document and SubDocument data structures which enables mapping between mongodb collection and  Scala client-side code.
 Underneath driver uses Slick version 3.2.3 and latest Cashbah version.
 
 Slick version  3.2.3
