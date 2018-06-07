@@ -2,7 +2,6 @@ language: scala
 script: sbt -jvm-opts jvmopts.travis -D test
 jdk:
   - oraclejdk8
-  - oraclejdk9
   - openjdk8
 notifications:
   flowdock:
