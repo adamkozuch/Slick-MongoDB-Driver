@@ -4,7 +4,6 @@ Slick driver for mongodb. Continuation of a https://github.com/dvinokurov/slick/
 In this project we have developed Document and SubDocument data structures which enables mapping between mongodb collection and  Scala client-side code.
 Underneath driver uses Slick version 3.2.3 and latest Cashbah version.
 
-Slick version  3.2.3
 
 Supported features: 
   - insert and query of top-level arrays of primitive values
